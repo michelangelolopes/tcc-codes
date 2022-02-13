@@ -4,10 +4,10 @@ import pickle
 import requests
 from bs4 import BeautifulSoup as BS
 from getpass import getpass
-from openpyxl import load_workbook
 from optparse import OptionParser
 
-dataframes = []
+import data_processing
+import file_operations
 
 def parse_terminal_options():
     # a função gera padrões de parâmetros a serem analisados e retorna o resultado final
@@ -30,9 +30,7 @@ def insert_or_load_credentials(opt):
     userinfo = os.path.join(os.getcwd(), opt.datadir, "userinfo.pickle")
     if os.path.exists(userinfo):
         print("Lendo credenciais de um arquivo.")
-        file = open(userinfo, 'rb')
-        data = pickle.load(file)
-        file.close()
+        data = file_operations.load_pickle_file(userinfo)
         opt.username = data['username']
         opt.password = data['password']
     else:
@@ -85,7 +83,8 @@ def get_opened_search_menu_html(opt, session, html_homepage, account):
 def search_and_save_class_infos(opt, session, html_menuOpen, account, year, semester):
     # a função faz a busca por turmas utilizando as informações carregadas do mapa de distribuição de salas e salva a resposta recebida em um dataframe
 
-    room_mapping = get_room_mapping_from_excel_file("arquivo_turnos_unificados.xlsx", "Horários")
+    room_mapping = data_processing.get_room_mapping_from_excel_file("arquivo_turnos_unificados.xlsx", "Horários")
+    dataframes = []
 
     data = {
         'form': 'form',
@@ -119,29 +118,27 @@ def search_and_save_class_infos(opt, session, html_menuOpen, account, year, seme
         data['form:checkNivel'] = 'on'
         data['form:checkCodigoTurma'] = ''
 
-    days = [2, 3, 4, 5, 6]
-    hours = [8, 10, 14, 16, 20]
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                for component_code, component_class in room_mapping[day][hour][classroom]:
+                    print("\n---------------------------------------\n")
+                    print(day, hour, component_code, component_class)
 
-    for day in days:
-        for hour in hours:
-            for info in room_mapping[day][hour]:
-                _, component_code, component_class = info 
-                print("\n---------------------------------------\n")
-                print(day, hour, component_code, component_class)
+                    data['form:inputCodDisciplina'] = component_code
 
-                data['form:inputCodDisciplina'] = component_code
+                    if component_class != None:
+                        data['form:checkCodigoTurma'] = 'on'
+                        data['form:inputCodTurma'] = component_class
+                    else:
+                        data['form:checkCodigoTurma'] = ''
+                        data['form:inputCodTurma'] = ''
 
-                if component_class != None:
-                    data['form:checkCodigoTurma'] = 'on'
-                    data['form:inputCodTurma'] = component_class
-                else:
-                    data['form:checkCodigoTurma'] = ''
-                    data['form:inputCodTurma'] = ''
+                    html_menuSearch = session.post(url = opt.url + "/sigaa/ensino/turma/busca_turma.jsf", data = data)
+                    save_infos_resulted_from_search(opt, session, html_menuSearch, data, account)
+    return dataframes
 
-                html_menuSearch = session.post(url = opt.url + "/sigaa/ensino/turma/busca_turma.jsf", data = data)
-                save_infos_resulted_from_search(opt, session, html_menuSearch, data, account)
-
-def save_infos_resulted_from_search(opt, session, html_menuSearch, data, account):
+def save_infos_resulted_from_search(opt, session, html_menuSearch, data, account, dataframes):
     # a função salva a resposta recebida sobre uma determinada turma pesquisada em um dataframe
 
     new_data = dict(data)
@@ -159,7 +156,7 @@ def save_infos_resulted_from_search(opt, session, html_menuSearch, data, account
     
     html_menuResult = session.post(url = opt.url + "/sigaa/ensino/turma/busca_turma.jsf", data = new_data)
     print_html_tables(html_menuResult.content)
-    save_html_tables(html_menuResult.content, account)
+    save_html_tables(html_menuResult.content, account, dataframes)
 
     return 0
 
@@ -189,37 +186,6 @@ def get_id_turma(page_html, account):
     
     return int(element[0].split(':')[1][1:-1])
 
-def load_html_file(filepath):
-    # a função carrega de um arquivo html o conteúdo dessa página
-
-    file_t = open(filepath, "r")
-    page_html = " ".join(file_t.readlines())
-    file_t.close()
-    return page_html
-
-def get_room_mapping_from_excel_file(filepath, worksheet_name):
-    # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma {day: {hour: [room, component_code, component_class] ...} ...}
-    
-    excel_workbook = load_workbook(filepath)
-    worksheet = excel_workbook[worksheet_name]
-    room_mapping = {}
-
-    for i in range(2, worksheet.max_row + 1):
-        day = worksheet.cell(row = i, column = 1).value
-        hour = worksheet.cell(row = i, column = 2).value
-        room = worksheet.cell(row = i, column = 3).value
-        component_code = worksheet.cell(row = i, column = 4).value
-        component_class = worksheet.cell(row = i, column = 5).value
-
-        if day not in room_mapping:
-            room_mapping[day] = {}
-            room_mapping[day][hour] = []
-        elif hour not in room_mapping[day]:
-            room_mapping[day][hour] = []
-        
-        room_mapping[day][hour].append([room, component_code, component_class])
-    return room_mapping
-
 def print_html_tables(page_html, account):
     # a função imprime a lista de tabelas em uma página html, como uma lista de dataframes (fica mais agradável de visualizar); obs.: a primeira tabela normalmente é a mais importante
 
@@ -229,7 +195,7 @@ def print_html_tables(page_html, account):
     elif account == 'docente':
         print(dataframe_list)
 
-def save_html_tables(page_html, account):
+def save_html_tables(page_html, account, dataframes):
     # a função salva a lista de tabelas em uma página html em uma lista de dataframes
 
     dataframe_list = pd.read_html(page_html)
@@ -255,7 +221,7 @@ def main():
     html_menuOpen = get_opened_search_menu_html(opt, session, html_homepage, 'discente')
 
     # faz a busca por informações de diferentes disciplinas presentes em um arquivo externo e salva em uma lista de dataframes
-    search_and_save_class_infos(opt, session, html_menuOpen, 'discente', 'ano escolhido', 'semestre escolhido')
+    dataframes = search_and_save_class_infos(opt, session, html_menuOpen, 'discente', 'ano escolhido', 'semestre escolhido')
 
     # salva a lista de dataframes em um arquivo pickle
     file = open(os.path.join(os.getcwd(), opt.datadir, "dataframes.pickle"), 'wb')
@@ -266,3 +232,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

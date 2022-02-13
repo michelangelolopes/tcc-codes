@@ -2,7 +2,8 @@
 
 1) receber dados de distribuição de salas para as turmas das disciplinas em um período letivo, em pdf
 2) tratar os dados do pdf de forma a habilitar o seu uso, gerando um arquivo xlsx ou csv
-3) ler os dados do novo arquivo e utilizá-los para extrair do sistema as informações dos alunos alocados em cada turma
+3) ler os dados do novo arquivo e utilizá-los para extrair do sistema as informações detalhadas de cada turma
+4) tratar os dados das turmas, para obter informações de alunos e professores
 4) gerar "bancos de dados" para: alunos, professores, disciplinas, mapeamento de salas
 
 # Estruturas de dados
