@@ -36,24 +36,41 @@ def get_students_mapping_from_pickle_file(datadir):
     dfpath = os.path.join(os.getcwd(), datadir, "dataframes.pickle")
     data = file_operations.load_pickle_file(dfpath)
 
-    print(data)
-    input()
-
     students_mapping = {}
-    students = {}
+    students = {} # usado como estrutura auxiliar
 
-    for subject in data['data']:
-        # print(subject)
-        # input()
-        component_code = subject[0][1][0].split('-')[0].strip() #0 - elemento dentro da lista, 1 - coluna com as informações, 0 - informações da disciplina, código é a primeira string antes do hífen
-        component_class = subject[0][1][1].strip()  #0 - elemento dentro da lista, 1 - coluna com as informações, 0 - informações da turma
-        students_ids = subject[1]['Matrícula'].tolist()
-        students_courses = subject[1]['Curso'].tolist()
+    professors_names = [] # usado para verificação apenas
+    professors = []
 
-        if component_code not in students_mapping: #adiciona o código da disciplina apenas quando aparece pela primeira vez
+    for infos in data['data']:
+        infos_subject = infos[0] # duas colunas, contendo as informações da disciplina; primeira com os nomes das infos e segunda com: disciplina, turma, nome do docente
+        infos_subject = infos_subject[1] # a segunda coluna possui os valores que estamos querendo utilizar
+
+        component_code = infos_subject[0] # a primeira linha tem o código e o nome da disciplina
+        component_code = component_code.split('-')[0].strip() # "código - nome" -> "código " -> "código"
+
+        component_class = infos_subject[1].strip() # segunda linha tem o código da turma
+
+        professor_name = infos_subject[2] # a terceira linha tem o nome do professor
+
+        if professor_name not in professors_names:
+            new_professor = classes.Professor(professor_name)
+            new_professor.subjects.append((component_code, component_class))
+            professors_names.append(professor_name)
+            professors.append(new_professor)
+        else:
+            index = professors_names.index(professor_name)
+            professors[index].subjects.append((component_code, component_class))
+
+        infos_students = infos[1] # informações dos alunos: matrícula, nome, curso
+
+        students_ids = infos_students['Matrícula'].tolist() # lista com as matrículas
+        students_courses = infos_students['Curso'].tolist() # lista com os cursos
+
+        if component_code not in students_mapping: # adiciona o código da disciplina apenas quando aparece pela primeira vez
             students_mapping[component_code] = {}
         
-        if component_class not in students_mapping[component_code]: #os estudantes em uma turma de um determinado código de disciplina são os mesmos, então só adicionamos na primeira vez que aparecem
+        if component_class not in students_mapping[component_code]: # os estudantes em uma turma de um determinado código de disciplina são os mesmos, então só adicionamos na primeira vez que aparecem
             students_mapping[component_code][component_class] = []
 
             for i in range(0, len(students_ids)):
@@ -66,5 +83,59 @@ def get_students_mapping_from_pickle_file(datadir):
                     students_mapping[component_code][component_class].append(new_student)
                 else:
                     students_mapping[component_code][component_class].append(students[student_id])
-    
-    return students_mapping, students
+
+    return students_mapping, professors
+
+def remove_data_not_imported(room_mapping, students_mapping):
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                indexes_to_remove = []
+                count = 0
+                for component_code, _ in room_mapping[day][hour][classroom]:
+                    if component_code not in students_mapping:
+                        indexes_to_remove.append(count)
+                    count += 1
+                count = 0
+                for remove_index in indexes_to_remove:
+                    del room_mapping[day][hour][classroom][remove_index - count]
+                    count += 1
+
+def fill_empty_classes(room_mapping, students_mapping):
+    auxiliar = {}
+
+    for component_code in students_mapping:
+        auxiliar[component_code] = list(students_mapping[component_code].keys())
+
+    for _ in range(0, 2):
+        values_to_remove = []
+        for day in room_mapping:
+            for hour in room_mapping[day]:
+                for classroom in room_mapping[day][hour]:
+                    count = 0
+                    tuples_to_modify = []
+                    for component_code, component_class in room_mapping[day][hour][classroom]:
+                        imported_classes = auxiliar[component_code]
+                        classes_count = len(imported_classes)
+                        if component_class == None:
+                            if classes_count == 1:
+                                tuples_to_modify.append((count, imported_classes[0]))
+                                if (component_code, imported_classes[0]) not in values_to_remove:
+                                    values_to_remove.append((component_code, imported_classes[0]))
+                        else:
+                            if component_class in auxiliar[component_code]:
+                                if (component_code, component_class) not in values_to_remove:
+                                    values_to_remove.append((component_code, component_class))
+                        count += 1
+                    
+                    for modify_index, new_component_class in tuples_to_modify:
+                        room_mapping[day][hour][classroom][modify_index][1] = new_component_class 
+        for component_code, component_class in values_to_remove:
+            auxiliar[component_code].remove(component_class)
+
+if __name__ == "__main__":
+    room_mapping = get_room_mapping_from_excel_file("../..", "Horários")
+    students_mapping, _ = get_students_mapping_from_pickle_file("../../")
+
+    remove_data_not_imported(room_mapping, students_mapping)
+    fill_empty_classes(room_mapping, students_mapping)

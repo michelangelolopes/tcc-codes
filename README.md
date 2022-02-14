@@ -35,3 +35,21 @@ sheet_mapping {
     ...
     ...
 }
+
+## Dataframe das disciplinas
+
+{"data": 
+[[
+        0               1
+    0   Componente:     Código da disciplina - Nome da disciplina
+    1   Turma:          Código da turma
+    2   Docente(s):     Nome do professor
+    3   Horário:        NaN,     
+
+        Matrícula       Unnamed: 1      Nome        Curso       Situação
+    0   Matrícula1      NaN             Aluno1      Curso1      Aprovado ou reprovado
+    1   Matrícula2      NaN             Aluno2      Curso2      Aprovado ou reprovado,
+
+        0
+    0   Nenhum aluno solicitou matrícula para esta turma
+]]}
