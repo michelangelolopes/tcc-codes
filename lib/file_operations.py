@@ -1,7 +1,7 @@
 import os
 import pickle
 
-import classes
+from . import classes
 
 def load_html_file(filepath):
     # a função carrega de um arquivo html o conteúdo dessa página

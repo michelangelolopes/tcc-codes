@@ -1,8 +1,8 @@
 import os
 from openpyxl import load_workbook
 
-import classes
-import file_operations
+from . import classes
+from . import file_operations
 
 def get_room_mapping_from_excel_file(filepath, worksheet_name):
     # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma {day: {hour: [room, component_code, component_class] ...} ...}
@@ -37,9 +37,8 @@ def get_academics_mapping_from_pickle_file(filepath):
 
     academics_mapping = {}
 
-    students = {} # usado como estrutura auxiliar
-    professors_names = [] # usado para verificação apenas
-    professors = []
+    students = {}
+    professors = {}
 
     for infos in data['data']:
         infos_subject = infos[0] # duas colunas, contendo as informações da disciplina; primeira com os nomes das infos e segunda com: disciplina, turma, nome do docente
@@ -63,18 +62,16 @@ def get_academics_mapping_from_pickle_file(filepath):
         if component_class not in academics_mapping[component_code]: # os estudantes em uma turma de um determinado código de disciplina são os mesmos, então só adicionamos na primeira vez que aparecem
             academics_mapping[component_code][component_class] = []
 
-            if professor_name not in professors_names:
+            if professor_name not in professors:
                 component_professor = classes.Professor(professor_name)
-                professors_names.append(professor_name)
-                professors.append(component_professor)
+                professors[professor_name] = component_professor
             else:
-                index = professors_names.index(professor_name)
-                component_professor = professors[index]
+                component_professor = professors[professor_name]
 
             academics_mapping[component_code][component_class].append(component_professor)
 
             for i in range(0, len(students_ids)):
-                student_id = students_ids[i]
+                student_id = str(students_ids[i])
                 student_course = students_courses[i]
                 new_student = classes.Student(student_id, student_course)
 
@@ -84,7 +81,7 @@ def get_academics_mapping_from_pickle_file(filepath):
                 else:
                     academics_mapping[component_code][component_class].append(students[student_id])            
     
-    return academics_mapping
+    return academics_mapping, students, professors
 
 def remove_data_not_imported(room_mapping, academics_mapping):
     for day in room_mapping:
@@ -133,14 +130,16 @@ def fill_empty_classes(room_mapping, academics_mapping):
         for component_code, component_class in values_to_remove:
             auxiliar[component_code].remove(component_class)
 
-if __name__ == "__main__":
-    xlsx_filepath, worksheet_name, pickle_filepath = file_operations.load_parameters_from_txt_file("file.txt")
+def get_and_save_data(filename):
+    xlsx_filepath, worksheet_name, pickle_filepath = file_operations.load_parameters_from_txt_file(filename)
     
     room_mapping = get_room_mapping_from_excel_file(xlsx_filepath, worksheet_name)
-    academics_mapping = get_academics_mapping_from_pickle_file(pickle_filepath)
+    academics_mapping, students, professors = get_academics_mapping_from_pickle_file(pickle_filepath)
 
     remove_data_not_imported(room_mapping, academics_mapping)
     fill_empty_classes(room_mapping, academics_mapping)
     
     file_operations.save_room_mapping_to_csv_file(room_mapping)
     file_operations.save_academics_mapping_to_csv_file(academics_mapping)
+
+    return room_mapping, academics_mapping, students, professors
