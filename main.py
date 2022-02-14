@@ -45,19 +45,11 @@ def simulation(room_mapping, students_mapping, students):
                     # for student in students_in_classroom:
                     #     print(student.id)
 
-def load_file_parameters(filename):
-    with open(filename, "r") as file:
-        file_content = file.readlines()
-        filepath = file_content[0].replace("\n", "")
-        worksheet_name = file_content[1].replace("\n", "")
-    
-    return filepath, worksheet_name
-
 def main():
     (opt, args) = parse_terminal_options()
-    filepath, worksheet_name = load_file_parameters("file.txt")
+    # filepath, worksheet_name = file_operations("file.txt")
 
-    students_mapping, students = data_processing.get_students_mapping_from_pickle_file(opt.datadir)
+    # students_mapping, students = data_processing.get_students_mapping_from_pickle_file(opt.datadir)
     # room_mapping = data_processing.get_room_mapping_from_excel_file(filepath, worksheet_name)
     # print(room_mapping)
     # simulation(room_mapping, students_mapping, students)

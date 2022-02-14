@@ -32,9 +32,8 @@ def get_room_mapping_from_excel_file(filepath, worksheet_name):
 
     return room_mapping
 
-def get_students_mapping_from_pickle_file(datadir):
-    dfpath = os.path.join(os.getcwd(), datadir, "dataframes.pickle")
-    data = file_operations.load_pickle_file(dfpath)
+def get_students_mapping_from_pickle_file(filepath):
+    data = file_operations.load_pickle_file(filepath)
 
     students_mapping = {}
     students = {} # usado como estrutura auxiliar
@@ -52,7 +51,6 @@ def get_students_mapping_from_pickle_file(datadir):
         component_class = infos_subject[1].strip() # segunda linha tem o código da turma
 
         professor_name = infos_subject[2] # a terceira linha tem o nome do professor
-
         if professor_name not in professors_names:
             new_professor = classes.Professor(professor_name)
             new_professor.subjects.append((component_code, component_class))
@@ -60,8 +58,8 @@ def get_students_mapping_from_pickle_file(datadir):
             professors.append(new_professor)
         else:
             index = professors_names.index(professor_name)
-            professors[index].subjects.append((component_code, component_class))
-
+            if (component_code, component_class) not in professors[index].subjects:
+                professors[index].subjects.append((component_code, component_class))
         infos_students = infos[1] # informações dos alunos: matrícula, nome, curso
 
         students_ids = infos_students['Matrícula'].tolist() # lista com as matrículas
@@ -83,7 +81,7 @@ def get_students_mapping_from_pickle_file(datadir):
                     students_mapping[component_code][component_class].append(new_student)
                 else:
                     students_mapping[component_code][component_class].append(students[student_id])
-
+    
     return students_mapping, professors
 
 def remove_data_not_imported(room_mapping, students_mapping):
@@ -134,8 +132,14 @@ def fill_empty_classes(room_mapping, students_mapping):
             auxiliar[component_code].remove(component_class)
 
 if __name__ == "__main__":
-    room_mapping = get_room_mapping_from_excel_file("../..", "Horários")
-    students_mapping, _ = get_students_mapping_from_pickle_file("../../")
+    xlsx_filepath, worksheet_name, pickle_filepath = file_operations.load_parameters_from_txt_file("file.txt")
+    
+    room_mapping = get_room_mapping_from_excel_file(xlsx_filepath, worksheet_name)
+    students_mapping, professors = get_students_mapping_from_pickle_file(pickle_filepath)
 
     remove_data_not_imported(room_mapping, students_mapping)
     fill_empty_classes(room_mapping, students_mapping)
+    
+    file_operations.save_room_mapping_to_csv_file(room_mapping)
+    file_operations.save_students_mapping_to_csv_file(students_mapping)
+    file_operations.save_professors_mapping_to_csv_file(professors)

@@ -12,6 +12,7 @@ class Student(Academic):
     self.course = course
 
 class Professor(Academic):
-  def __init__(self, name, subjects = []):
+  def __init__(self, name):
     self.name = name
-    self.subjects = subjects
+    self.subjects = []
+    
