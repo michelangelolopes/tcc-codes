@@ -14,5 +14,4 @@ class Student(Academic):
 class Professor(Academic):
   def __init__(self, name):
     self.name = name
-    self.subjects = []
     

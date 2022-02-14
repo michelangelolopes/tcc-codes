@@ -4,7 +4,12 @@
 2) tratar os dados do pdf de forma a habilitar o seu uso, gerando um arquivo xlsx ou csv
 3) ler os dados do novo arquivo e utilizá-los para extrair do sistema as informações detalhadas de cada turma
 4) tratar os dados das turmas, para obter informações de alunos e professores
-4) gerar "bancos de dados" para: alunos, professores, disciplinas, mapeamento de salas
+4) gerar "bancos de dados" para: 
+* mapeamento de salas(dia, hora, sala, id_disciplina)
+* disciplinas(id_disciplina, código_disciplina, código_turma, id_acadêmico) 
+* acadêmicos(id_acadêmico, id_estudante, id_professor)
+* alunos(id_aluno, matrícula, curso)
+* professores(id_professor, nome)
 
 # Estruturas de dados
 
@@ -22,10 +27,13 @@ room_mapping {
     }
 }
 
-students_mapping {
+academics_mapping {
     component_code {
         component_class {
-            [student_1, ... student_n]
+            (
+                professor_1
+                [student_1, ... student_n]
+            )
         }
     }
 }

@@ -12,11 +12,11 @@ def parse_terminal_options():
 
     return parser.parse_args()
 
-def simulation(room_mapping, students_mapping, students):
+def simulation(room_mapping, academics_mapping, students):
     week_days = range(2, 7) #exclusivo
     class_hours = [8, 10, 14, 16, 18, 20]
     
-    data_processing.remove_data_not_imported(room_mapping, students_mapping)
+    data_processing.remove_data_not_imported(room_mapping, academics_mapping)
     # input()
 
     #sábado e domingo
@@ -28,18 +28,18 @@ def simulation(room_mapping, students_mapping, students):
         for hour in class_hours:
             for classroom in room_mapping[day][hour]:
                 for component_code, component_class in room_mapping[day][hour][classroom]:
-                    # if len(students_mapping[component_code]) > 1:
-                    #     print(list(students_mapping[component_code].keys()))
+                    # if len(academics_mapping[component_code]) > 1:
+                    #     print(list(academics_mapping[component_code].keys()))
                     #     print(component_code)
-                    #     for component_class in students_mapping[component_code]:
-                    #         print(component_class, len(students_mapping[component_code][component_class]))
+                    #     for component_class in academics_mapping[component_code]:
+                    #         print(component_class, len(academics_mapping[component_code][component_class]))
                     #     # input()
                     if component_class == None:
-                        if len(students_mapping[component_code]) == 1:    
-                            component_class = list(students_mapping[component_code].keys())[0]
+                        if len(academics_mapping[component_code]) == 1:    
+                            component_class = list(academics_mapping[component_code].keys())[0]
                     # print(day, hour, classroom, component_code, component_class)
                         
-                    students_in_classroom = students_mapping[component_code][component_class]
+                    students_in_classroom = academics_mapping[component_code][component_class]
                     #ADICIONAR FÓRMULA PARA O CÁLCULO DA PROBABILIDADE DE CONTAMINAÇÃO
                     
                     # for student in students_in_classroom:
@@ -49,11 +49,11 @@ def main():
     (opt, args) = parse_terminal_options()
     # filepath, worksheet_name = file_operations("file.txt")
 
-    # students_mapping, students = data_processing.get_students_mapping_from_pickle_file(opt.datadir)
+    # academics_mapping, students = data_processing.get_academics_mapping_from_pickle_file(opt.datadir)
     # room_mapping = data_processing.get_room_mapping_from_excel_file(filepath, worksheet_name)
     # print(room_mapping)
-    # simulation(room_mapping, students_mapping, students)
-    # remove_data_not_imported(room_mapping, students_mapping)
+    # simulation(room_mapping, academics_mapping, students)
+    # remove_data_not_imported(room_mapping, academics_mapping)
 
     return
 

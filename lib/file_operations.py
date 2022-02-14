@@ -1,6 +1,8 @@
 import os
 import pickle
 
+import classes
+
 def load_html_file(filepath):
     # a função carrega de um arquivo html o conteúdo dessa página
 
@@ -31,20 +33,16 @@ def save_room_mapping_to_csv_file(room_mapping):
                     for component_code, component_class in room_mapping[day][hour][classroom]:
                         file.write("%s;%s;%s;%s;%s\n" % (day, hour, classroom, component_code, component_class))
 
-def save_students_mapping_to_csv_file(students_mapping):
-    with open("students_mapping.csv", "w") as file:
-        file.write("Disciplina;Turma;Matrícula;Curso\n")
-        for component_code in students_mapping:
-            for component_class in students_mapping[component_code]:
-                for student in students_mapping[component_code][component_class]:
-                    file.write("%s;%s;%s;%s\n" % (component_code, component_class, student.id, student.course))
-
-def save_professors_mapping_to_csv_file(professors):
-    with open("professors_mapping.csv", "w") as file:
-        file.write("Nome do professor;Disciplina;Turma\n")
-        for professor in professors:
-            for component_code, component_class in professor.subjects:
-                file.write("%s;%s;%s\n" % (professor.name, component_code, component_class))
+def save_academics_mapping_to_csv_file(academics_mapping):
+    with open("academics_mapping.csv", "w") as file:
+        file.write("Disciplina;Turma;Matrícula/Nome;Curso\n")
+        for component_code in academics_mapping:
+            for component_class in academics_mapping[component_code]:
+                for academic in academics_mapping[component_code][component_class]:
+                    if isinstance(academic, classes.Professor):
+                        file.write("%s;%s;%s;%s\n" % (component_code, component_class, academic.name, ""))
+                    elif isinstance(academic, classes.Student):
+                        file.write("%s;%s;%s;%s\n" % (component_code, component_class, academic.id, academic.course))  
 
 def load_parameters_from_txt_file(filename):
     with open(filename, "r") as file:
