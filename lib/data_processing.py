@@ -83,7 +83,7 @@ def get_academics_mapping_from_pickle_file(filepath):
     
     return academics_mapping, students, professors
 
-def remove_data_not_imported(room_mapping, academics_mapping):
+def remove_not_imported_component_code(room_mapping, academics_mapping):
     for day in room_mapping:
         for hour in room_mapping[day]:
             for classroom in room_mapping[day][hour]:
@@ -98,7 +98,22 @@ def remove_data_not_imported(room_mapping, academics_mapping):
                     del room_mapping[day][hour][classroom][remove_index - count]
                     count += 1
 
-def fill_empty_classes(room_mapping, academics_mapping):
+def remove_not_imported_component_class(room_mapping, academics_mapping):
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                indexes_to_remove = []
+                count = 0
+                for component_code, component_class in room_mapping[day][hour][classroom]:
+                    if component_class not in academics_mapping[component_code]:
+                        indexes_to_remove.append(count)
+                    count += 1
+                count = 0
+                for remove_index in indexes_to_remove:
+                    del room_mapping[day][hour][classroom][remove_index - count]
+                    count += 1
+
+def fill_empty_component_class(room_mapping, academics_mapping):
     auxiliar = {}
 
     for component_code in academics_mapping:
@@ -136,8 +151,9 @@ def get_and_save_data(filename):
     room_mapping = get_room_mapping_from_excel_file(xlsx_filepath, worksheet_name)
     academics_mapping, students, professors = get_academics_mapping_from_pickle_file(pickle_filepath)
 
-    remove_data_not_imported(room_mapping, academics_mapping)
-    fill_empty_classes(room_mapping, academics_mapping)
+    remove_not_imported_component_code(room_mapping, academics_mapping)
+    fill_empty_component_class(room_mapping, academics_mapping)
+    remove_not_imported_component_class(room_mapping, academics_mapping)
     
     file_operations.save_room_mapping_to_csv_file(room_mapping)
     file_operations.save_academics_mapping_to_csv_file(academics_mapping)

@@ -30,10 +30,7 @@ room_mapping {
 academics_mapping {
     component_code {
         component_class {
-            (
-                professor_1
-                [student_1, ... student_n]
-            )
+                [professor_1, student_1, ... student_n]
         }
     }
 }
