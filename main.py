@@ -47,6 +47,9 @@ def tracking(informed_academic, informed_id, informed_day, room_mapping, academi
         choosed_academic = professors[informed_id]
     elif informed_academic == "A":
         choosed_academic = students[informed_id]
+
+    # assumindo que o acadêmico fez o teste no primeiro dia que sentiu os sintomas da covid e informou que estava contaminado
+    # ignorando dias de fim de semana por enquanto
     
     choosed_academic.hasCovid = True
     choosed_academic.canTransmit = True
@@ -92,8 +95,10 @@ def tracking(informed_academic, informed_id, informed_day, room_mapping, academi
                         print(classroom_contamination_prob)
 
                         for academic in academics_mapping[component_code][component_class]:
+                            # analisar como "juntar" probabilidades
+                            # teste com somatório ficou esquisito
                             if not academic.hasCovid:
-                                academic.infectionProbability += classroom_contamination_prob # analisar como "juntar" probabilidades
+                                academic.infectionProbability += classroom_contamination_prob #* (1 + academic.infectionProbability)
 
     calculate_contamination_associated_values(professors)
     calculate_contamination_associated_values(students)
