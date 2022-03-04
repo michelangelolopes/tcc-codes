@@ -1,10 +1,11 @@
 class Academic:
   def __init__(self):
-    self.hasCovid = False
-    self.canTransmit = False
-    self.hasSymptoms = False # talvez remover, já que não é utilizado
-    self.countInfectedTime = 0
-    self.infectionProbability = 0
+    self.has_covid = False
+    self.can_transmit = False
+    # self.has_symptoms = False # talvez remover, já que não é utilizado
+    self.infected_days = 0
+    self.infection_probability = 0
+    self.breathing_rate = 0
 
 class Student(Academic):
   def __init__(self, id, course):
@@ -17,3 +18,10 @@ class Professor(Academic):
     Academic.__init__(self)
     self.name = name
     
+class Classroom:
+  def __init__(self, height, width, length):
+    self.volume = length * width * height
+    # self.height = height
+    # self.width = width
+    # self.length = length
+    # self.has_outside_opening = has_outside_opening

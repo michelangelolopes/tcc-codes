@@ -1,11 +1,11 @@
-import os
 from openpyxl import load_workbook
 
 from . import classes
 from . import file_operations
 
 def get_room_mapping_from_excel_file(filepath, worksheet_name):
-    # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma {day: {hour: [room, component_code, component_class] ...} ...}
+    # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma
+    # {day: {hour: {classroom: [component_code, component_class] ...} ...} ...}
 
     excel_workbook = load_workbook(filepath)
     worksheet = excel_workbook[worksheet_name]
@@ -145,11 +145,30 @@ def fill_empty_component_class(room_mapping, academics_mapping):
         for component_code, component_class in values_to_remove:
             auxiliar[component_code].remove(component_class)
 
+def get_classrooms_data_from_excel_file(filepath):
+    # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma
+    # {day: {hour: {classroom: [component_code, component_class] ...} ...} ...}
+
+    excel_workbook = load_workbook(filepath)
+    worksheet = excel_workbook.active
+    classrooms = {}
+
+    for i in range(2, worksheet.max_row + 1):
+        classroom = worksheet.cell(row = i, column = 1).value
+        height = worksheet.cell(row = i, column = 2).value
+        width = worksheet.cell(row = i, column = 3).value
+        length = worksheet.cell(row = i, column = 4).value
+
+        classrooms[classroom] = classes.Classroom(height, width, length)
+
+    return classrooms
+
 def get_and_save_data(filename):
-    xlsx_filepath, worksheet_name, pickle_filepath = file_operations.load_parameters_from_txt_file(filename)
+    xlsx_filepath_1, worksheet_name, pickle_filepath, xlsx_filepath_2 = file_operations.load_parameters_from_txt_file(filename)
     
-    room_mapping = get_room_mapping_from_excel_file(xlsx_filepath, worksheet_name)
+    room_mapping = get_room_mapping_from_excel_file(xlsx_filepath_1, worksheet_name)
     academics_mapping, students, professors = get_academics_mapping_from_pickle_file(pickle_filepath)
+    classrooms = get_classrooms_data_from_excel_file(xlsx_filepath_2)
 
     remove_not_imported_component_code(room_mapping, academics_mapping)
     fill_empty_component_class(room_mapping, academics_mapping)
@@ -158,4 +177,4 @@ def get_and_save_data(filename):
     file_operations.save_room_mapping_to_csv_file(room_mapping)
     file_operations.save_academics_mapping_to_csv_file(academics_mapping)
 
-    return room_mapping, academics_mapping, students, professors
+    return room_mapping, academics_mapping, students, professors, classrooms
