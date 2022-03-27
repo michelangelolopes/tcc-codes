@@ -1,0 +1,8 @@
+__pycache__
+
+./*.csv
+lib/*.csv
+*.txt
+*.pickle
+*.xlsx
+*.pdf
