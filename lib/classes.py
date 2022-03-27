@@ -5,8 +5,11 @@ class Academic:
     self.can_transmit = False
     # self.has_symptoms = False # talvez remover, já que não é utilizado
     self.infected_days = 0
-    self.infection_probability = 0
+    self.infection_probability = []
     self.breathing_rate = 0
+
+  def set_empty_infection_probability(self):
+    self.infection_probability = []
 
 class Student(Academic):
   def __init__(self, registration_number = "", course = ""):
