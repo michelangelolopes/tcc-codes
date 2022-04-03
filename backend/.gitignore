@@ -3,6 +3,7 @@ __pycache__
 ./*.csv
 lib/*.csv
 *.txt
+!requirements.txt
 *.pickle
 *.xlsx
 *.pdf
