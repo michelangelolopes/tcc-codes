@@ -237,20 +237,20 @@ def anonymize_data(room_mapping, academics_mapping, professors, students):
 
     return academics
 
-def find_class_instance_by_id(list, id):
+def find_class_instance_by_id(id, list):
     for element in list:
         if id == element.id:
             return element
     
     return None
 
-def find_class_instance_by_academic_id(academics, professors, students, academic_id):
+def find_class_instance_by_academic_id(academic_id, academics, professors, students):
     professor_id, student_id = academics[academic_id]
 
     if professor_id == "":
-        academic = find_class_instance_by_id(students, student_id)
+        academic = find_class_instance_by_id(student_id, students)
 
     elif student_id == "":
-        academic = find_class_instance_by_id(professors, professor_id)
+        academic = find_class_instance_by_id(professor_id, professors)
 
     return academic

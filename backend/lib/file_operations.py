@@ -98,7 +98,7 @@ def load_academics_from_csv_file(professors, students):
     for academic_id, professor_id, student_id in rows:
         academics[academic_id] = (professor_id, student_id)
 
-        academic = data_processing.find_class_instance_by_academic_id(academics, professors, students, academic_id)
+        academic = data_processing.find_class_instance_by_academic_id(academic_id, academics, professors, students)
 
         academic.academic_id = academic_id
 
@@ -130,7 +130,7 @@ def load_academics_mapping_from_csv_file(academics, professors, students):
         if component_class not in academics_mapping[component_code]:
             academics_mapping[component_code][component_class] = []
 
-        academic = data_processing.find_class_instance_by_academic_id(academics, professors, students, academic_id)
+        academic = data_processing.find_class_instance_by_academic_id(academic_id, academics, professors, students)
         
         academics_mapping[component_code][component_class].append(academic)
 

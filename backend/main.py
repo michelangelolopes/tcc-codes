@@ -1,4 +1,5 @@
 import datetime
+import json
 import math
 import random
 from itertools import combinations
@@ -6,6 +7,13 @@ from optparse import OptionParser
 
 from lib import data_processing
 from lib import file_operations
+
+from flask import Flask, request
+from flask_cors import CORS, cross_origin
+ 
+app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 def parse_terminal_options():
     # a função gera padrões de parâmetros a serem analisados e retorna o resultado final
@@ -25,6 +33,7 @@ def wells_riley_equation(param):
         ventilation_volume = param['room_volume'] * ventilation_rate
         
         n = (param['infectors_count'] * param['quantum_generation_rate'] * param['breathing_rate'] * param['duration_time'])
+        n *= (1 - param['infector_mask']) * (1 - param['susceptible_mask'])
         n /= ventilation_volume
 
         infection_probability.append(1 - math.exp(-n))
@@ -51,22 +60,11 @@ def get_days_to_analyse(informed_day):
 
     return week_days
 
-def tracking(informed_id, informed_day, room_mapping, academics_mapping, academics, professors, students, classrooms):
-    choosed_academic = data_processing.find_class_instance_by_academic_id(academics, professors, students, informed_id)
-
-    print(choosed_academic.academic_id)
-    # assumindo que o acadêmico fez o teste no primeiro dia que sentiu os sintomas da covid e informou que estava contaminado
+@app.route('/tracking', methods=["POST"])
+@cross_origin()
+def tracking():
+    room_mapping, academics_mapping, academics, professors, students, classrooms = file_operations.load_anonymized_data_from_csv_files()
     
-    choosed_academic.has_covid = True
-    choosed_academic.can_transmit = True
-    choosed_academic.infected_days = 0
-
-    # quatro dias anteriores a notificação de contaminação, ignorando dias de fim de semana
-    days = get_days_to_analyse(informed_day)
-    
-    # pessoas que estiveram na mesma sala de alguém infectado
-    affected_academics = []
-
     with open("ventilation_rates", "r") as file:
         ventilation_rates = file.readlines()
     
@@ -76,8 +74,32 @@ def tracking(informed_id, informed_day, room_mapping, academics_mapping, academi
         'quantum_generation_rate': 48, # foi o máximo de quanta para a covid 19, segundo o artigo do park (2021)
         'breathing_rate': 0.3, # segundo o artigo de park (2021) é a taxa de respiração de uma pessoa em repouso
         'duration_time': 2, # considerando que as aulas sempre durem 2 horas
-        'ventilation_rates': ventilation_rates
+        'ventilation_rates': ventilation_rates,
+        'infector_mask': 0,
+        'susceptible_mask': 0
     }
+    
+    post_param = request.get_json()
+    
+    informed_id = post_param['id']
+    informed_day = get_weekday_by_date(post_param['date'])
+    informed_mask = get_mask_efficiency(post_param['mask'])
+
+    choosed_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
+
+    print(choosed_academic.academic_id)
+    # assumindo que o acadêmico fez o teste no primeiro dia que sentiu os sintomas da covid e informou que estava contaminado
+    
+    choosed_academic.has_covid = True
+    choosed_academic.can_transmit = True
+    choosed_academic.infected_days = 0
+    equation_param['infector_mask'] = informed_mask
+
+    # quatro dias anteriores a notificação de contaminação, ignorando dias de fim de semana
+    days = get_days_to_analyse(informed_day)
+    
+    # pessoas que estiveram na mesma sala de alguém infectado
+    affected_academics = []
 
     # segunda a sexta
     for day in days:
@@ -87,7 +109,7 @@ def tracking(informed_id, informed_day, room_mapping, academics_mapping, academi
 
                 if choosed_academic in academics_mapping[component_code][component_class]:
                     print(day, hour, classroom, component_code, component_class)
-                    current_classroom = data_processing.find_class_instance_by_id(classrooms, classroom)
+                    current_classroom = data_processing.find_class_instance_by_id(classroom, classrooms)
                     count_infected = 0
 
                     for academic in academics_mapping[component_code][component_class]:
@@ -113,6 +135,8 @@ def tracking(informed_id, informed_day, room_mapping, academics_mapping, academi
     calculate_contamination_associated_values(students)
 
     verify_affected(affected_academics)
+
+    return json.dumps({})
 
 def combination_probability(prob_list):
     
@@ -160,6 +184,23 @@ def verify_affected(affected_academics):
                 print(affected_academic.academic_id, affected_academic.id, case_combination_prob, "não foi contaminado no caso %d" % (case + 1))
 
         affected_academic.set_empty_infection_probability()
+
+def get_mask_efficiency(mask_type):
+    mask_dict = {
+        'no_mask': 0,
+        'surgery_mask': 0.5,
+        'n95_mask': 0.95
+    }
+
+    return mask_dict[mask_type]
+
+def get_weekday_by_date(datetime_str):
+    date_format = '%Y-%m-%d'
+    date_str = datetime_str.split('T')[0] # sobra apenas a data, sem o tempo
+
+    datetime_obj = datetime.datetime.strptime(date_str, date_format)
+    
+    return datetime_obj.weekday()
 
 def main():
     # (opt, args) = parse_terminal_options()
