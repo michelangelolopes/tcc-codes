@@ -3,12 +3,12 @@ from openpyxl import load_workbook
 from . import classes
 from . import file_operations
 
-def get_room_mapping_from_excel_file(filepath, worksheet_name):
+def get_room_mapping_from_excel_file(filepath):
     # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma
     # {day: {hour: {classroom: [component_code, component_class] ...} ...} ...}
 
     excel_workbook = load_workbook(filepath)
-    worksheet = excel_workbook[worksheet_name]
+    worksheet = excel_workbook.active
     room_mapping = {}
 
     for i in range(2, worksheet.max_row + 1):
@@ -143,21 +143,36 @@ def fill_empty_component_class(room_mapping, academics_mapping):
         for component_code, component_class in values_to_remove:
             classes_to_fix[component_code].remove(component_class) # remove as classes corrigidas
 
-def get_classrooms_data_from_excel_file(filepath):
-    # a função carrega dados de uma planilha; após isso, cria e retorna um dicionário da forma
-    # {day: {hour: {classroom: [component_code, component_class] ...} ...} ...}
+def get_classroom_types_from_excel_file(filepath):
+    excel_workbook = load_workbook(filepath)
+    worksheet = excel_workbook.active
+    classroom_types = []
 
+    for i in range(2, worksheet.max_row + 1):
+        type = worksheet.cell(row = i, column = 1).value
+        height = worksheet.cell(row = i, column = 2).value
+        width = worksheet.cell(row = i, column = 3).value
+        length = worksheet.cell(row = i, column = 4).value
+
+        classroom_types.append(classes.Classroom_Type(type, float(height), float(width), float(length)))
+
+    return classroom_types
+
+def get_classrooms_from_excel_file(filepath, classroom_types):
     excel_workbook = load_workbook(filepath)
     worksheet = excel_workbook.active
     classrooms = []
 
     for i in range(2, worksheet.max_row + 1):
         id = worksheet.cell(row = i, column = 1).value
-        height = worksheet.cell(row = i, column = 2).value
-        width = worksheet.cell(row = i, column = 3).value
-        length = worksheet.cell(row = i, column = 4).value
+        type = worksheet.cell(row = i, column = 2).value
+        
+        for classroom_type in classroom_types:
+            if classroom_type.type == type:
+                break
 
-        classrooms.append(classes.Classroom(id, height, width, length))
+        classroom = classes.Classroom(id, classroom_type)
+        classrooms.append(classroom)
 
     return classrooms
 
@@ -179,12 +194,16 @@ def get_academics_dict(professors, students):
     
     return academics
 
-def get_processed_data(filename):
-    xlsx_filepath_1, worksheet_name, pickle_filepath, xlsx_filepath_2 = file_operations.load_parameters_from_txt_file(filename)
+def get_processed_data():
+    filename = "lib/file.txt"
+    parameters = file_operations.load_parameters_from_txt_file(filename)
+    pickle_filepath, room_mapping_filepath, classroom_types_filepath, classrooms_filepath = parameters
     
-    room_mapping = get_room_mapping_from_excel_file(xlsx_filepath_1, worksheet_name)
+    room_mapping = get_room_mapping_from_excel_file(room_mapping_filepath)
     academics_mapping, students, professors = get_academics_mapping_from_pickle_file(pickle_filepath)
-    classrooms = get_classrooms_data_from_excel_file(xlsx_filepath_2)
+
+    classroom_types = get_classroom_types_from_excel_file(classroom_types_filepath)
+    classrooms = get_classrooms_from_excel_file(classrooms_filepath, classroom_types)
 
     remove_not_imported_component_code(room_mapping, academics_mapping)
     fill_empty_component_class(room_mapping, academics_mapping)
@@ -192,7 +211,7 @@ def get_processed_data(filename):
 
     academics = anonymize_data(room_mapping, academics_mapping, professors, students)
 
-    return room_mapping, academics_mapping, academics, professors, students, classrooms
+    return room_mapping, academics_mapping, academics, professors, students, classroom_types, classrooms
 
 def anonymize_dict(dict, prefix):
     id_count = 1

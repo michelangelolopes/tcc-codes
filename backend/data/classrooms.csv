@@ -1,48 +1,48 @@
-Sala;Altura;Largura;Profundidade
-201A;3;6;12
-202A;3;6;12
-203A;3;6;12
-204A;3;6;12
-301A;3;6;12
-302A;3;6;12
-303A;3;6;12
-304A;3;6;12
-305A;3;6;12
-201B;3;6;12
-202B;3;6;12
-203B;3;6;12
-204B;3;6;12
-301B;3;6;12
-302B;3;6;12
-303B;3;6;12
-304B;3;6;12
-101I;3;6;12
-102I;3;6;12
-103I;3;6;12
-104I;3;6;12
-201I;3;6;12
-202I;3;6;12
-203I;3;6;12
-204I;3;6;12
-301I;3;6;12
-302I;3;6;12
-303I;3;6;12
-304I;3;6;12
-201M;3;6;12
-202M;3;6;12
-203M;3;6;12
-204M;3;6;12
-207M;3;6;12
-209M;3;6;12
-210M;3;6;12
-301M;3;6;12
-302M;3;6;12
-303M;3;6;12
-304M;3;6;12
-309M;3;6;12
-310M;3;6;12
-103P;3;6;12
-105P;3;6;12
-106P;3;6;12
-107P;3;6;12
-110P;3;6;12
+Sala;Tipo de sala
+201A;Sala média
+202A;Sala média
+203A;Sala média
+204A;Sala média
+301A;Sala média
+302A;Sala média
+303A;Sala média
+304A;Sala média
+305A;Sala pequena
+201B;Sala média
+202B;Sala média
+203B;Sala média
+204B;Sala média
+301B;Sala média
+302B;Sala média
+303B;Sala média
+304B;Sala média
+101I;Sala média
+102I;Sala média
+103I;Sala média
+104I;Sala média
+201I;Sala média
+202I;Sala média
+203I;Sala média
+204I;Sala média
+301I;Sala média
+302I;Sala média
+303I;Sala média
+304I;Sala média
+201M;Sala média
+202M;Sala média
+203M;Sala média
+204M;Sala média
+207M;Sala pequena
+209M;Sala grande
+210M;Sala grande
+301M;Sala média
+302M;Sala média
+303M;Sala média
+304M;Sala média
+309M;Sala grande
+310M;Sala grande
+103P;Sala pós
+105P;Sala pós
+106P;Sala pós
+107P;Sala pós
+110P;Sala pós

@@ -25,10 +25,15 @@ class Professor(Academic):
     self.name = name
     
 class Classroom:
-  def __init__(self, id, height, width, length):
+  def __init__(self, id, type):
     self.id = id
+    self.type = type
+    # self.has_outside_opening = has_outside_opening
+
+class Classroom_Type:
+  def __init__(self, type, height, width, length):
+    self.type = type
     self.height = height
     self.width = width
     self.length = length
     self.volume = length * width * height
-    # self.has_outside_opening = has_outside_opening

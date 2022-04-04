@@ -171,15 +171,37 @@ def load_room_mapping_from_csv_file():
 
     return room_mapping
 
+def save_classroom_types_to_csv_file(classroom_types):
+    if not os.path.exists("./data/"):
+        os.makedirs("./data/")
+    with open("./data/classroom_types.csv", "w") as file:
+        file.write("Tipo da sala;Altura;Largura;Profundidade\n")
+        for classroom_type in classroom_types:
+            file.write("%s;%s;%s;%s\n" % (classroom_type.type, classroom_type.height, classroom_type.width, classroom_type.length))
+
+def load_classroom_types_from_csv_file():
+    with open("./data/classroom_types.csv", "r") as file:
+        rows = file.readlines()
+    
+    rows.pop(0)
+    rows = [row.replace("\n", "").split(";") for row in rows]
+
+    classroom_types = []
+
+    for type, height, width, length in rows:
+        classroom_types.append(classes.Classroom_Type(type, float(height), float(width), float(length)))
+
+    return classroom_types
+
 def save_classrooms_to_csv_file(classrooms):
     if not os.path.exists("./data/"):
         os.makedirs("./data/")
     with open("./data/classrooms.csv", "w") as file:
-        file.write("Sala;Altura;Largura;Profundidade\n")
+        file.write("Sala;Tipo de sala\n")
         for classroom in classrooms:
-            file.write("%s;%s;%s;%s\n" % (classroom.id, classroom.height, classroom.width, classroom.length))
+            file.write("%s;%s\n" % (classroom.id, classroom.type.type))
 
-def load_classrooms_mapping_from_csv_file():
+def load_classrooms_from_csv_file(classroom_types):
     with open("./data/classrooms.csv", "r") as file:
         rows = file.readlines()
     
@@ -188,17 +210,23 @@ def load_classrooms_mapping_from_csv_file():
 
     classrooms = []
 
-    for id, height, width, length in rows:
-        classrooms.append(classes.Classroom(id, float(height), float(width), float(length)))
+    for id, type in rows:
+        for classroom_type in classroom_types:
+            if classroom_type.type == type:
+                break
+
+        classroom = classes.Classroom(id, classroom_type)
+        classrooms.append(classroom)
 
     return classrooms
 
-def save_structures_to_csv_files(room_mapping, academics_mapping, academics, professors, students, classrooms):
+def save_structures_to_csv_files(room_mapping, academics_mapping, academics, professors, students, classroom_types, classrooms):
     save_room_mapping_to_csv_file(room_mapping)
     save_academics_mapping_to_csv_file(academics_mapping)
     save_academics_to_csv_file(academics)
     save_professors_to_csv_file(professors)
     save_students_to_csv_file(students)
+    save_classroom_types_to_csv_file(classroom_types)
     save_classrooms_to_csv_file(classrooms)
 
 def load_anonymized_data_from_csv_files():
@@ -211,7 +239,8 @@ def load_anonymized_data_from_csv_files():
     academics = load_academics_from_csv_file(professors, students)
     academics_mapping = load_academics_mapping_from_csv_file(academics, professors, students)
     room_mapping = load_room_mapping_from_csv_file()
-    classrooms = load_classrooms_mapping_from_csv_file()
+    classroom_types = load_classroom_types_from_csv_file()
+    classrooms = load_classrooms_from_csv_file(classroom_types)
 
-    return room_mapping, academics_mapping, academics, professors, students, classrooms
+    return room_mapping, academics_mapping, academics, professors, students, classroom_types, classrooms
     
