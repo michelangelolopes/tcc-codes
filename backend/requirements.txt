@@ -1,6 +1,7 @@
 beautifulsoup4==4.10.0
 Flask==2.0.3
 Flask_Cors==3.0.10
+matplotlib==3.5.1
 openpyxl==3.0.9
 pandas==1.4.1
 pdfplumber==0.6.0

@@ -1,9 +1,14 @@
 import datetime
 import math
+import matplotlib.pyplot as plt
 import os
+import numpy
+import pandas as pd
 from itertools import combinations
+from matplotlib.ticker import FuncFormatter
 from optparse import OptionParser
 
+from lib import classes
 from lib import data_processing
 from lib import file_operations
 
@@ -193,10 +198,7 @@ def set_contaminated_academic(academic):
 
 # @app.route('/tracking', methods=["POST"])
 # @cross_origin()
-def main():
-    (opt, _) = parse_terminal_options()
-
-    data = load_and_save_data(opt.load_data, opt.save_csv)
+def simulate_tracking(data):
     room_mapping, academics_mapping, academics, professors, students, _, classrooms = data
 
     equation_params = {
@@ -204,12 +206,12 @@ def main():
         'breathing_rate': 0.3, # segundo o artigo de park (2021) é a taxa de respiração de uma pessoa em repouso
         'duration_time': 2, # considerando que as aulas sempre durem 2 horas
         'ventilation_rates': get_ventilation_rates_from_file(),
-        'infector_mask': 0.5, # vamos considerar que os infectores estão sempre com máscara cirúrgica
+        'infector_mask': 0, # vamos considerar que os infectores estão sempre com máscara cirúrgica
         'susceptible_mask': 0 # vamos considerar sem máscara, em um primeiro momento
     }
 
     file = open("results.csv", "w")
-    file.write("ID do acadêmico;Dia da semana que foi feita a notificação;Quantidade de afetados;Caso 1;Caso 2;Caso 3;Caso 4;Caso 5;Caso 6\n")
+    file.write("academic_id;notification_day;affected_people_count;case_0;case_1;case_2;case_3;case_4;case_5\n")
 
     days = [3, 4, 5, 6, 7, 1]
 
@@ -245,6 +247,132 @@ def main():
             file.flush()
             os.fsync(file)
     file.close()
+
+def weighted_std(df, values_column, weights_column, average_column):
+    """
+    Return the weighted average and standard deviation.
+
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    values = df[values_column]
+    weights = df[weights_column]
+    average = df[average_column]
+    # average = numpy.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = numpy.average((values - average)**2, weights = weights)
+    return math.sqrt(variance)
+
+def weighted_avg(df, values_column, weights_column):
+    values = df[values_column]
+    weights = df[weights_column]
+    
+    return (values * weights).sum() / weights.sum()
+
+def generate_graphs_by_day_average(df):
+    df_days = df.groupby(df["notification_day"])
+    
+    # average_prob_by_day = []
+
+    final_df = pd.DataFrame()
+    final_df["notification_day"] = df_days.groups.keys()
+
+    print(final_df["notification_day"])
+    
+    standard_deviation = {}
+
+    for index in range(0, 6):
+        current_case = "case_%d" % index
+        # average_prob_by_day.append(df_days.apply(weighted_avg, case, "affected_people_count"))
+        average_case_series = df_days.apply(weighted_avg, current_case, "affected_people_count")
+        # print(average_case_series)
+        # print(average_case_series.std())
+        final_df["avg_%s" % current_case] = average_case_series.values
+        # final_df["std_%s" % current_case] = average_case_series.std()
+        standard_deviation[current_case] = average_case_series.std()
+        # average_case_series = average_case_df.to_frame()
+        # average_case_df = pd.DataFrame(average_case_series).reset_index()
+        # average_case_df.columns = ["notification_day", "Média do %s" % current_case]
+        # # average_case.columns = ["notification_day", "Média do %s" % case]
+        # print(type(df), type(df_days), type(average_case_df))
+        # print(average_case_df)
+        print(final_df)
+        print(standard_deviation)
+        # print(average_prob_by_day[index].columns)
+        # print(average_prob_by_day[index].std())
+        plot = final_df.plot(kind='bar',x='notification_day',y="avg_%s" % current_case,color='blue', yerr=standard_deviation[current_case])
+        plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
+        plt.savefig("teste_%s.png" % current_case)
+        input()
+
+
+        # plt.close()
+
+def generate_graphs_by_professor_student_average(df, data):
+    _, _, academics, professors, students, _, _ = data
+    remove_duplicates = lambda list_: list(dict.fromkeys(list_))
+    academics_ids = remove_duplicates(df['academic_id'].tolist())
+    # print(academics_ids)
+
+    professors_ids = []
+    students_ids = []
+
+    students_courses = {}
+
+    for academic_id in academics_ids:
+        academic_instance = data_processing.find_class_instance_by_academic_id(academic_id, academics, professors, students)
+
+        if type(academic_instance) == classes.Professor:
+            professors_ids.append(academic_id)
+        elif type(academic_instance) == classes.Student:
+            students_ids.append(academic_id)
+            
+            if academic_instance.course not in students_courses:
+                students_courses[academic_instance.course] = []
+            
+            students_courses[academic_instance.course].append(academic_id)
+
+    # print(students_courses)
+
+    average_prob_by_professors = []
+
+    df_professors = df[df["academic_id"].isin(professors_ids)]
+    df_professors = df[df["affected_people_count"] != 0]
+    # print(df_professors["affected_people_count"])
+
+    # print(df_professors.apply(print))
+        # lambda column: numpy.average(column["case_6"], weights=column["affected_people_count"]), axis=1))
+    # weights = df_professors["affected_people_count"]
+
+    # for index in range(0, 6):
+    #     values = df_professors["case_%d" % (index + 1)].tolist()
+
+    #     average_prob_by_professors(numpy.average(values, weights=weights))
+
+    # print(average_prob_by_professors)
+    # .apply(lambda column: numpy.average(column["case_1"], weights=column["affected_people_count"]), axis=1)
+
+    # print(df_professors)
+
+    #     average_prob_by_day[index] = df_professors.apply(lambda column: numpy.average(column["case_%d" % (index + 1)], weights=column["affected_people_count"]))
+    #     print(average_prob_by_day[index])
+    print()
+
+def get_statistics(data):
+    df = pd.read_csv("results.csv", sep=";")
+    
+    generate_graphs_by_day_average(df)
+    # generate_graphs_by_professor_student_average(df, data)
+
+
+    
+
+def main():
+    (opt, _) = parse_terminal_options()
+
+    data = load_and_save_data(opt.load_data, opt.save_csv)
+
+    # simulate_tracking(data)
+    get_statistics(data)
 
 if __name__ == "__main__":
     main()
