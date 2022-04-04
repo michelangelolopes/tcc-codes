@@ -1,7 +1,6 @@
 import datetime
-import json
 import math
-import random
+import os
 from itertools import combinations
 from optparse import OptionParser
 
@@ -48,12 +47,15 @@ def get_incubation_days(informed_day, incubation_interval):
     incubation_days = []
 
     # intervalos recebem os valores dos índices, o que permite a utilização da funcionalidade de índices negativos do python
-    start_range = informed_day - incubation_interval
-    end_range = informed_day
+    
+    count = 0
+    while count < incubation_interval:
+        index = informed_day - (incubation_interval + count)
 
-    for index in range(start_range, end_range):
         if days[index] in week_days:
             incubation_days.append(days[index])
+
+        count += 1
     
     # dia que os sintomas apareceram --- dias a serem analisados (serão ignorados sábado e domingo) --- 4 dias de incubação
     # 2 --- 5671
@@ -64,7 +66,7 @@ def get_incubation_days(informed_day, incubation_interval):
 
     return incubation_days
 
-def tracking(room_mapping, academics_mapping, classrooms, choosed_academic, incubation_days, equation_params):
+def calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params):
     # assumindo que o acadêmico fez o teste no primeiro dia que sentiu os sintomas da covid e informou que estava contaminado
     
     # pessoas que estiveram na mesma sala de alguém infectado
@@ -76,32 +78,33 @@ def tracking(room_mapping, academics_mapping, classrooms, choosed_academic, incu
             for classroom in room_mapping[day][hour]:
                 component_code, component_class = room_mapping[day][hour][classroom]
 
-                if choosed_academic in academics_mapping[component_code][component_class]:
-                    print(day, hour, classroom, component_code, component_class)
+                if infected_academic in academics_mapping[component_code][component_class]:
+                    # print(day, hour, classroom, component_code, component_class)
                     current_classroom = data_processing.find_class_instance_by_id(classroom, classrooms)
-                    count_infected = 0
+                    count_infected = 1
 
                     for academic in academics_mapping[component_code][component_class]:
-                        if academic not in affected_academics and academic != choosed_academic:
+                        if academic not in affected_academics and academic != infected_academic:
                             affected_academics.append(academic)
-                        if academic.has_covid and academic.can_transmit:
-                            count_infected += 1
                     
                     equation_params['infectors_count'] = count_infected
                     equation_params['room_volume'] = current_classroom.type.volume
                     classroom_contamination_prob = wells_riley_equation(equation_params)
 
                     for academic in academics_mapping[component_code][component_class]:
-                        if not academic.has_covid:
+                        if academic != infected_academic:
                             if academic.infection_probability == []:
                                 for _ in range(0, 6): # são 6 casos do artigo do park
                                     academic.infection_probability.append([])
                             for case in range(0, 6): 
                                 academic.infection_probability[case].append(classroom_contamination_prob[case])
 
-    verify_affected(affected_academics)
-
-    return json.dumps({})
+    for affected_academic in affected_academics:
+        for case in range(0, 6):
+            case_combination_prob = combination_probability(affected_academic.infection_probability[case])
+            affected_academic.comb_prob.append(case_combination_prob)
+    # print_affected_academics_contamination_prob(affected_academics)
+    return affected_academics
 
 def combination_probability(prob_list):
     
@@ -125,13 +128,11 @@ def combination_probability(prob_list):
 
     return comb_prob_all
 
-def verify_affected(affected_academics):
+def print_affected_academics_contamination_prob(affected_academics):
     for affected_academic in affected_academics:
         for case in range(0, 6):
-            case_combination_prob = combination_probability(affected_academic.infection_probability[case])
-            print("%s (%s)\t\tcaso %d\t\t%f" % (affected_academic.academic_id, affected_academic.id, case + 1, case_combination_prob))
+            print("%s (%s)\t\tcaso %d\t\t%f" % (affected_academic.academic_id, affected_academic.id, case + 1, affected_academic.comb_prob[case]))
         print("----------------------------------------------------------------------------------------------")
-        affected_academic.set_empty_infection_probability()
 
 def get_mask_efficiency(mask_type):
     mask_dict = {
@@ -194,29 +195,56 @@ def set_contaminated_academic(academic):
 # @cross_origin()
 def main():
     (opt, _) = parse_terminal_options()
+
     data = load_and_save_data(opt.load_data, opt.save_csv)
-
     room_mapping, academics_mapping, academics, professors, students, _, classrooms = data
-    informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
-
-    choosed_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
-    set_contaminated_academic(choosed_academic)
-
-    # ignorando dias de fim de semana
-    incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
 
     equation_params = {
         'quantum_generation_rate': 48, # foi o máximo de quanta para a covid 19, segundo o artigo do park (2021)
         'breathing_rate': 0.3, # segundo o artigo de park (2021) é a taxa de respiração de uma pessoa em repouso
         'duration_time': 2, # considerando que as aulas sempre durem 2 horas
         'ventilation_rates': get_ventilation_rates_from_file(),
-        'infector_mask': informed_mask,
+        'infector_mask': 0.5, # vamos considerar que os infectores estão sempre com máscara cirúrgica
         'susceptible_mask': 0 # vamos considerar sem máscara, em um primeiro momento
     }
 
-    tracking(room_mapping, academics_mapping, classrooms, choosed_academic, incubation_days, equation_params)
+    file = open("results.csv", "w")
+    file.write("ID do acadêmico;Dia da semana que foi feita a notificação;Quantidade de afetados;Caso 1;Caso 2;Caso 3;Caso 4;Caso 5;Caso 6\n")
 
-    return
+    days = [3, 4, 5, 6, 7, 1]
+
+    for informed_id in academics:
+        for informed_day in days:
+            # print(informed_id, informed_day)
+            # informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
+            infected_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
+
+            # ignorando dias de fim de semana
+            incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
+
+            affected_academics = calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params)
+
+            average = [0] * 6
+            count_affected = len(affected_academics)
+            
+            if count_affected != 0:
+                for affected_academic in affected_academics:
+                    for case in range(0, 6):
+                        average[case] += affected_academic.comb_prob[case]
+                    
+                    affected_academic.infection_probability = []
+                    affected_academic.comb_prob = []
+                for case in range(0, 6):
+                    average[case] /= count_affected
+
+            # print(average)
+            file.write("%s;%d;%d" % (informed_id, informed_day, count_affected))
+            for case in range(0, 6):
+                file.write(";%f" % average[case])
+            file.write("\n")
+            file.flush()
+            os.fsync(file)
+    file.close()
 
 if __name__ == "__main__":
     main()
