@@ -1,6 +1,6 @@
 import datetime
+from fileinput import filename
 import math
-from unicodedata import name
 import matplotlib.pyplot as plt
 import os
 import numpy
@@ -278,29 +278,21 @@ def weighted_avg(df, values_column, weights_column):
     
     return (values * weights).sum() / weights.sum()
 
-def generate_graphs_by_day_average(df):
+def get_dataframe_dict_to_calculate_average(df, choosed_column):
     df_masks = df.groupby(["mask_type"])
     
     df_dict = {}
     for mask_type, df_mask in df_masks:
-        df_dict[mask_type] = df_mask.groupby(["notification_day"])
-        # print(df_dict[mask_type].apply(print))
-        # input()
-    # average_prob_by_day = []
+        df_dict[mask_type] = df_mask.groupby([choosed_column])
 
-    # final_df = pd.DataFrame()
-    # final_df["notification_day"] = df_days.groups.keys()
+    return df_dict
 
-    # print(final_df["notification_day"])
-    
-    # standard_deviation = {}
-
+def get_dataframe_series_dict_with_calculated_averages(df_dict):
     series_dict = {}
 
     for index in range(1, 7):
         for mask_type in df_dict:
             current_case = "case_%d" % index
-            # average_prob_by_day.append(df_days.apply(weighted_avg, case, "affected_people_count"))
             average_case_series = df_dict[mask_type].apply(weighted_avg, current_case, "affected_people_count")
             
             if index not in series_dict:
@@ -308,130 +300,112 @@ def generate_graphs_by_day_average(df):
             
             if mask_type not in series_dict[index]:
                 series_dict[index][mask_type] = average_case_series
-            # print(current_case, mask_type)
-            # print(average_case_series)
     
+    return series_dict
 
-    # new_df = series_dict[1]["no_mask"].to_frame().reset_index()
-    # new_df.columns = ["notification_day", "Sem máscara"]
-    named_days = ["Domingo", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+def generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column):
+    final_df = case_df.melt(id_vars=[choosed_column])
 
-    new_df = pd.DataFrame(index=named_days)
-    new_df["notification_day"] = named_days
-    new_df["Sem máscara"] = series_dict[1]["no_mask"].values
-    new_df["Máscara Cirúrgica"] = series_dict[1]["surgery_mask"].values
-    new_df["Máscara N95"] = series_dict[1]["n95_mask"].values
-
-    named_days.append(named_days.pop(0))
-
-    # df.loc[-1] = ['45', 'Dean', 'male']  # adding a row
-    # df.index = df.index + 1  # shifting index
-    # df.sort_index(inplace=True) 
-    # a = new_df.loc[0]
-    # new_df.concat(new_df[.loc[0]])
-    # list = new_df.values
-    # last = list[0][0]
-    # numpy.delete(list[0], 0)
-    # numpy.append(list[0], last)
-    # new_df.values = list
-    new_df = new_df.loc[named_days]
-    new_df.reset_index(drop=True, inplace=True)
-    print(new_df)
-    input()
-    new_df = new_df.melt(id_vars=["notification_day"])
-    new_df["new_var"] = new_df.variable
-    
-    
-    plot = sns.barplot(x="notification_day", y="value", hue='variable', data=new_df)
-    sns.set(rc={'figure.figsize':(11,8)})
+    plot = sns.barplot(x=choosed_column, y="value", hue='variable', data=final_df)
     plot.set_xlabel("Dia da notificação")
-    plot.set_ylabel("Probabilidade média de contaminação no Caso 1")
-    plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
-    fig = plot.get_figure()
-    legenda = plt.legend(bbox_to_anchor=(1.02, 0.8), borderaxespad=0, title="Tipo de máscara")
-    fig.savefig("images/Z.png", bbox_extra_artists=(legenda,), bbox_inches='tight')
-            # print(average_case_series.std())
-            # input()
-        # final_df["avg_%s" % current_case] = average_case_series.values
-        # final_df["std_%s" % current_case] = average_case_series.std()
-        # standard_deviation[current_case] = average_case_series.std()
-        # average_case_series = average_case_df.to_frame()
-        # average_case_df = pd.DataFrame(average_case_series).reset_index()
-        # average_case_df.columns = ["notification_day", "Média do %s" % current_case]
-        # # average_case.columns = ["notification_day", "Média do %s" % case]
-        # print(type(df), type(df_days), type(average_case_df))
-        # print(average_case_df)
-        # print(final_df)
-        # print(standard_deviation)
-        # print(average_prob_by_day[index].columns)
-        # print(average_prob_by_day[index].std())
+    plot.set_ylabel("Probabilidade média de contaminação no Caso " + str(case_index))
+    plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1%}'.format(y))) 
+    legend = plt.legend(bbox_to_anchor=(1.02, 0.8), borderaxespad=0, title="Tipo de máscara")
 
-    # for index in range(0, 6):
-    #     current_case = "case_%d" % index
-        # plot = final_df.plot(kind='bar', x='notification_day', y='avg_%s' % current_case, color='blue', yerr=standard_deviation[current_case])
-        # plot = average_case_series.plot(kind = 'bar', yerr = average_case_series.std())
-        # plot.set_xlabel("Dia da notificação")
-        # plot.set_ylabel("Probabilidade média do Caso %d" % (index + 1))
-        # plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
-        # plt.savefig("images/zzz_%s.png" % current_case)
-        # plt.close()
-        # input()
+    filename = path + "case_" + str(case_index) + "." + filetype
+    figure = plot.get_figure()
+    figure.savefig(filename, bbox_extra_artists=(legend,), bbox_inches='tight')
+    plt.close()
 
-def generate_graphs_by_professor_student_average(df, data):
-    _, _, academics, professors, students, _, _ = data
-    remove_duplicates = lambda list_: list(dict.fromkeys(list_))
-    academics_ids = remove_duplicates(df['academic_id'].tolist())
-    # print(academics_ids)
+def generate_graphs_by_day_average(df, filetype):
+    choosed_column = "notification_day"
+    path = './images/days/'
 
+    df_dict = get_dataframe_dict_to_calculate_average(df, choosed_column)
+    series_dict = get_dataframe_series_dict_with_calculated_averages(df_dict)
+    
+    named_days = ["Domingo", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+    reordered_named_days = ["Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        
+    for case_index in range(1, 7):
+        case_df = pd.DataFrame(index=named_days)
+        case_df["Sem máscara"] = series_dict[case_index]["no_mask"].values
+        case_df["Máscara Cirúrgica"] = series_dict[case_index]["surgery_mask"].values
+        case_df["Máscara N95"] = series_dict[case_index]["n95_mask"].values
+
+        case_df = case_df.loc[reordered_named_days]
+        case_df.reset_index(inplace=True)
+        case_df.rename(columns={'index': choosed_column}, inplace=True)
+
+        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column)
+
+def generate_graphs_by_professor_student_average(df, filetype, professors_ids, students_ids):
+    new_df = df.copy().assign(professor_student='')
+    new_df.loc[new_df["academic_id"].isin(professors_ids), 'professor_student'] = 'professor'
+    new_df.loc[new_df["academic_id"].isin(students_ids), 'professor_student'] = 'student'
+
+    choosed_column = "professor_student"
+    path = './images/people/'
+
+    df_dict = get_dataframe_dict_to_calculate_average(new_df, choosed_column)
+    series_dict = get_dataframe_series_dict_with_calculated_averages(df_dict)
+
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        
+    for case_index in range(1, 7):
+        case_df = pd.DataFrame()
+        case_df[choosed_column] = ["professor", "student"]
+        case_df["Sem máscara"] = series_dict[case_index]["no_mask"].values
+        case_df["Máscara Cirúrgica"] = series_dict[case_index]["surgery_mask"].values
+        case_df["Máscara N95"] = series_dict[case_index]["n95_mask"].values
+
+        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column)
+
+def get_professors_students_academic_id(academics):
     professors_ids = []
     students_ids = []
 
-    students_courses = {}
-
-    for academic_id in academics_ids:
-        academic_instance = data_processing.find_class_instance_by_academic_id(academic_id, academics, professors, students)
-
-        if type(academic_instance) == classes.Professor:
-            professors_ids.append(academic_id)
-        elif type(academic_instance) == classes.Student:
+    for academic_id in academics:
+        if academics[academic_id][0] == '':
             students_ids.append(academic_id)
-            
-            if academic_instance.course not in students_courses:
-                students_courses[academic_instance.course] = []
-            
-            students_courses[academic_instance.course].append(academic_id)
 
-    # print(students_courses)
+        if academics[academic_id][1] == '':
+            professors_ids.append(academic_id)
 
-    average_prob_by_professors = []
+    return professors_ids, students_ids
 
-    df_professors = df[df["academic_id"].isin(professors_ids)]
-    df_professors = df[df["affected_people_count"] != 0]
-    # print(df_professors["affected_people_count"])
+def get_students_by_courses_dict(students_ids, academics, professors, students):
+    students_by_courses = {}
 
-    # print(df_professors.apply(print))
-        # lambda column: numpy.average(column["case_6"], weights=column["affected_people_count"]), axis=1))
-    # weights = df_professors["affected_people_count"]
+    for academic_id in students_ids:
+        student_instance = data_processing.find_class_instance_by_academic_id(academic_id, academics, professors, students)
+        
+        student_course = student_instance.course
 
-    # for index in range(0, 6):
-    #     values = df_professors["case_%d" % (index + 1)].tolist()
+        if student_course not in students_by_courses:
+            students_by_courses[student_course] = []
+        
+        students_by_courses[student_course].append(academic_id)
+    
+    return students_by_courses
 
-    #     average_prob_by_professors(numpy.average(values, weights=weights))
-
-    # print(average_prob_by_professors)
-    # .apply(lambda column: numpy.average(column["case_1"], weights=column["affected_people_count"]), axis=1)
-
-    # print(df_professors)
-
-    #     average_prob_by_day[index] = df_professors.apply(lambda column: numpy.average(column["case_%d" % (index + 1)], weights=column["affected_people_count"]))
-    #     print(average_prob_by_day[index])
-    print()
+def generate_graphs_by_course_average(df, data):
+    return
 
 def get_statistics(data):
     df = pd.read_csv("results.csv", sep=";")
     
-    generate_graphs_by_day_average(df)
-    # generate_graphs_by_professor_student_average(df, data)
+    _, _, academics, professors, students, _, _ = data
+    
+    professors_ids, students_ids = get_professors_students_academic_id(academics)
+    students_by_courses = get_students_by_courses_dict(students_ids, academics, professors, students)
+
+    generate_graphs_by_day_average(df, "png")
+    generate_graphs_by_professor_student_average(df, "png", professors_ids, students_ids)
 
 
     
