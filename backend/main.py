@@ -1,9 +1,11 @@
 import datetime
 import math
+from unicodedata import name
 import matplotlib.pyplot as plt
 import os
 import numpy
 import pandas as pd
+import seaborn as sns
 from itertools import combinations
 from matplotlib.ticker import FuncFormatter
 from optparse import OptionParser
@@ -206,46 +208,54 @@ def simulate_tracking(data):
         'breathing_rate': 0.3, # segundo o artigo de park (2021) é a taxa de respiração de uma pessoa em repouso
         'duration_time': 2, # considerando que as aulas sempre durem 2 horas
         'ventilation_rates': get_ventilation_rates_from_file(),
-        'infector_mask': 0, # vamos considerar que os infectores estão sempre com máscara cirúrgica
-        'susceptible_mask': 0 # vamos considerar sem máscara, em um primeiro momento
+        'infector_mask': 0,
+        'susceptible_mask': 0
     }
 
     file = open("results.csv", "w")
-    file.write("academic_id;notification_day;affected_people_count;case_0;case_1;case_2;case_3;case_4;case_5\n")
+    file.write("academic_id;notification_day;mask_type;affected_people_count")
+    
+    for index in range(1, 7):
+        file.write(";case_%d" % index)
+    
+    file.write("\n")
 
     days = [3, 4, 5, 6, 7, 1]
 
     for informed_id in academics:
         for informed_day in days:
-            # print(informed_id, informed_day)
-            # informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
-            infected_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
+            for mask_type in ["no_mask", "surgery_mask", "n95_mask"]:
+                # print(informed_id, informed_day)
+                # informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
+                infected_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
 
-            # ignorando dias de fim de semana
-            incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
+                # ignorando dias de fim de semana
+                incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
 
-            affected_academics = calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params)
+                equation_params["infector_mask"] = get_mask_efficiency(mask_type)
+                equation_params["susceptible_mask"] = get_mask_efficiency(mask_type)
+                affected_academics = calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params)
 
-            average = [0] * 6
-            count_affected = len(affected_academics)
-            
-            if count_affected != 0:
-                for affected_academic in affected_academics:
+                average = [0] * 6
+                count_affected = len(affected_academics)
+                
+                if count_affected != 0:
+                    for affected_academic in affected_academics:
+                        for case in range(0, 6):
+                            average[case] += affected_academic.comb_prob[case]
+                        
+                        affected_academic.infection_probability = []
+                        affected_academic.comb_prob = []
                     for case in range(0, 6):
-                        average[case] += affected_academic.comb_prob[case]
-                    
-                    affected_academic.infection_probability = []
-                    affected_academic.comb_prob = []
-                for case in range(0, 6):
-                    average[case] /= count_affected
+                        average[case] /= count_affected
 
-            # print(average)
-            file.write("%s;%d;%d" % (informed_id, informed_day, count_affected))
-            for case in range(0, 6):
-                file.write(";%f" % average[case])
-            file.write("\n")
-            file.flush()
-            os.fsync(file)
+                # print(average)
+                file.write("%s;%d;%s;%d" % (informed_id, informed_day, mask_type, count_affected))
+                for case in range(0, 6):
+                    file.write(";%f" % average[case])
+                file.write("\n")
+                file.flush()
+                os.fsync(file)
     file.close()
 
 def weighted_std(df, values_column, weights_column, average_column):
@@ -269,43 +279,103 @@ def weighted_avg(df, values_column, weights_column):
     return (values * weights).sum() / weights.sum()
 
 def generate_graphs_by_day_average(df):
-    df_days = df.groupby(df["notification_day"])
+    df_masks = df.groupby(["mask_type"])
     
+    df_dict = {}
+    for mask_type, df_mask in df_masks:
+        df_dict[mask_type] = df_mask.groupby(["notification_day"])
+        # print(df_dict[mask_type].apply(print))
+        # input()
     # average_prob_by_day = []
 
-    final_df = pd.DataFrame()
-    final_df["notification_day"] = df_days.groups.keys()
+    # final_df = pd.DataFrame()
+    # final_df["notification_day"] = df_days.groups.keys()
 
-    print(final_df["notification_day"])
+    # print(final_df["notification_day"])
     
-    standard_deviation = {}
+    # standard_deviation = {}
 
-    for index in range(0, 6):
-        current_case = "case_%d" % index
-        # average_prob_by_day.append(df_days.apply(weighted_avg, case, "affected_people_count"))
-        average_case_series = df_days.apply(weighted_avg, current_case, "affected_people_count")
-        # print(average_case_series)
-        # print(average_case_series.std())
-        final_df["avg_%s" % current_case] = average_case_series.values
+    series_dict = {}
+
+    for index in range(1, 7):
+        for mask_type in df_dict:
+            current_case = "case_%d" % index
+            # average_prob_by_day.append(df_days.apply(weighted_avg, case, "affected_people_count"))
+            average_case_series = df_dict[mask_type].apply(weighted_avg, current_case, "affected_people_count")
+            
+            if index not in series_dict:
+                series_dict[index] = {}
+            
+            if mask_type not in series_dict[index]:
+                series_dict[index][mask_type] = average_case_series
+            # print(current_case, mask_type)
+            # print(average_case_series)
+    
+
+    # new_df = series_dict[1]["no_mask"].to_frame().reset_index()
+    # new_df.columns = ["notification_day", "Sem máscara"]
+    named_days = ["Domingo", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+
+    new_df = pd.DataFrame(index=named_days)
+    new_df["notification_day"] = named_days
+    new_df["Sem máscara"] = series_dict[1]["no_mask"].values
+    new_df["Máscara Cirúrgica"] = series_dict[1]["surgery_mask"].values
+    new_df["Máscara N95"] = series_dict[1]["n95_mask"].values
+
+    named_days.append(named_days.pop(0))
+
+    # df.loc[-1] = ['45', 'Dean', 'male']  # adding a row
+    # df.index = df.index + 1  # shifting index
+    # df.sort_index(inplace=True) 
+    # a = new_df.loc[0]
+    # new_df.concat(new_df[.loc[0]])
+    # list = new_df.values
+    # last = list[0][0]
+    # numpy.delete(list[0], 0)
+    # numpy.append(list[0], last)
+    # new_df.values = list
+    new_df = new_df.loc[named_days]
+    new_df.reset_index(drop=True, inplace=True)
+    print(new_df)
+    input()
+    new_df = new_df.melt(id_vars=["notification_day"])
+    new_df["new_var"] = new_df.variable
+    
+    
+    plot = sns.barplot(x="notification_day", y="value", hue='variable', data=new_df)
+    sns.set(rc={'figure.figsize':(11,8)})
+    plot.set_xlabel("Dia da notificação")
+    plot.set_ylabel("Probabilidade média de contaminação no Caso 1")
+    plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
+    fig = plot.get_figure()
+    legenda = plt.legend(bbox_to_anchor=(1.02, 0.8), borderaxespad=0, title="Tipo de máscara")
+    fig.savefig("images/Z.png", bbox_extra_artists=(legenda,), bbox_inches='tight')
+            # print(average_case_series.std())
+            # input()
+        # final_df["avg_%s" % current_case] = average_case_series.values
         # final_df["std_%s" % current_case] = average_case_series.std()
-        standard_deviation[current_case] = average_case_series.std()
+        # standard_deviation[current_case] = average_case_series.std()
         # average_case_series = average_case_df.to_frame()
         # average_case_df = pd.DataFrame(average_case_series).reset_index()
         # average_case_df.columns = ["notification_day", "Média do %s" % current_case]
         # # average_case.columns = ["notification_day", "Média do %s" % case]
         # print(type(df), type(df_days), type(average_case_df))
         # print(average_case_df)
-        print(final_df)
-        print(standard_deviation)
+        # print(final_df)
+        # print(standard_deviation)
         # print(average_prob_by_day[index].columns)
         # print(average_prob_by_day[index].std())
-        plot = final_df.plot(kind='bar',x='notification_day',y="avg_%s" % current_case,color='blue', yerr=standard_deviation[current_case])
-        plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
-        plt.savefig("teste_%s.png" % current_case)
-        input()
 
-
+    # for index in range(0, 6):
+    #     current_case = "case_%d" % index
+        # plot = final_df.plot(kind='bar', x='notification_day', y='avg_%s' % current_case, color='blue', yerr=standard_deviation[current_case])
+        # plot = average_case_series.plot(kind = 'bar', yerr = average_case_series.std())
+        # plot.set_xlabel("Dia da notificação")
+        # plot.set_ylabel("Probabilidade média do Caso %d" % (index + 1))
+        # plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y))) 
+        # plt.savefig("images/zzz_%s.png" % current_case)
         # plt.close()
+        # input()
 
 def generate_graphs_by_professor_student_average(df, data):
     _, _, academics, professors, students, _, _ = data
