@@ -12,7 +12,8 @@ lib/*
 *.csv
 !data/*.csv
 
+*.gnu
 *.pickle
-*.xlsx
 *.pdf
 *.png
+*.xlsx
