@@ -8,14 +8,17 @@ const CovidCaseForm = (props) => {
 
   const registrationNumberChangeHandler = (event) => {
     setEnteredRegistrationNumber(event.target.value);
+    console.log(event.target.value);
   };
 
   const dateChangeHandler = (event) => {
     setEnteredDate(event.target.value);
+    console.log(event.target.value);
   };
 
   const maskChangeHandler = (event) => {
     props.onChangeFilter(event.target.value);
+    console.log(event.target.value);
   };
 
   const submitHandler = (event) => {
@@ -27,17 +30,20 @@ const CovidCaseForm = (props) => {
       date: new Date(enteredDate),
     };
 
-    fetch('http://127.0.0.1:5000/mult', {
+    fetch('http://127.0.0.1:5000/tracking', {
       method: "POST",
       headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'mode': 'no-cors'
+          'accept': 'application/json',
+          'content-type': 'application/json'
       },
-      body: JSON.stringify(data)}).then(response => {
+      body: JSON.stringify(data)})
+      
+      .then(response => {
         if (response.status >= 200 && response.status < 300) {
-            console.log(response.status);}
-  });
+            console.log(response.status);
+            console.log(response.json());
+        }
+      });
 
     // props.onSaveExpenseData(expenseData);
     setEnteredRegistrationNumber('');
@@ -61,7 +67,7 @@ const CovidCaseForm = (props) => {
         <label>Máscara utilizada</label>
         <select value={props.selected} onChange={maskChangeHandler}>
           <option value='no_mask'>Sem máscara</option>
-          <option value='surgery_mark'>Máscara cirúrgica</option>
+          <option value='surgery_mask'>Máscara cirúrgica</option>
           <option value='n95_mask'>Máscara N95</option>
         </select>
       </div>

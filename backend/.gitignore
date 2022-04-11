@@ -1,9 +1,17 @@
 __pycache__
 
-./*.csv
-lib/*.csv
+images/*
+
+lib/*
+!lib/*.py
+
 *.txt
 !requirements.txt
+
+*.csv
+!data/*.csv
+
 *.pickle
 *.xlsx
 *.pdf
+*.png
