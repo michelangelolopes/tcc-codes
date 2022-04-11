@@ -1,6 +1,7 @@
 import datetime
 from fileinput import filename
 import math
+from turtle import width
 import matplotlib.pyplot as plt
 import os
 import numpy
@@ -25,9 +26,9 @@ def parse_terminal_options():
     # a função gera padrões de parâmetros a serem analisados e retorna o resultado final
 
     parser = OptionParser()
-    parser.add_option("-c", "--save-csv", action="store_true", dest="save_csv", default=False, help="Define se os dados serão salvos ou não")
+    parser.add_option("-c", "--save-csv", action="store_true", dest="save_csv", default=False, help="Define se os dados brutos tratados serão salvos ou não")
     parser.add_option("-f", "--use-flask", action="store_true", dest="use_flask", default=False, help="Define se o Flask será usado ou não")
-    parser.add_option("-d", "--load-data", type="string", dest="load_data", default="csv", help="Seleciona a forma como os dados serão obtidos, por csv ou por excel")
+    parser.add_option("-o", "--load-option", type="string", dest="load_option", default="csv", help="Seleciona a forma como os dados serão obtidos, por csv, dados anonimizados, ou por excel, dados brutos")
 
     return parser.parse_args()
 
@@ -168,12 +169,12 @@ def get_ventilation_rates_from_file():
     return ventilation_rates
 
 def load_and_save_data(load_option, save_data):
-    load_data_option = {
+    load_options = {
         "csv": file_operations.load_anonymized_data_from_csv_files,
         "excel": data_processing.get_processed_data
     }
 
-    data = load_data_option[load_option]()
+    data = load_options[load_option]()
 
     if save_data == True:
         file_operations.save_structures_to_csv_files(data)
@@ -258,20 +259,6 @@ def simulate_tracking(data):
                 os.fsync(file)
     file.close()
 
-def weighted_std(df, values_column, weights_column, average_column):
-    """
-    Return the weighted average and standard deviation.
-
-    values, weights -- Numpy ndarrays with the same shape.
-    """
-    values = df[values_column]
-    weights = df[weights_column]
-    average = df[average_column]
-    # average = numpy.average(values, weights=weights)
-    # Fast and numerically precise:
-    variance = numpy.average((values - average)**2, weights = weights)
-    return math.sqrt(variance)
-
 def weighted_avg(df, values_column, weights_column):
     values = df[values_column]
     weights = df[weights_column]
@@ -303,19 +290,73 @@ def get_dataframe_series_dict_with_calculated_averages(df_dict):
     
     return series_dict
 
-def generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column):
-    final_df = case_df.melt(id_vars=[choosed_column])
+def generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, plot_kind, label_data):
+    # final_df = case_df.melt(id_vars=[choosed_column])
+    # print(case_df)
+    # print(case_df["Sem máscara"].std())
+    # print(len(case_df))
+    # print(len(case_df.index))
 
-    plot = sns.barplot(x=choosed_column, y="value", hue='variable', data=final_df)
-    plot.set_xlabel("Dia da notificação")
-    plot.set_ylabel("Probabilidade média de contaminação no Caso " + str(case_index))
-    plot.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1%}'.format(y))) 
-    legend = plt.legend(bbox_to_anchor=(1.02, 0.8), borderaxespad=0, title="Tipo de máscara")
+    case_df_rows_count = len(case_df.index)
 
-    filename = path + "case_" + str(case_index) + "." + filetype
-    figure = plot.get_figure()
-    figure.savefig(filename, bbox_extra_artists=(legend,), bbox_inches='tight')
+    # # fig, ax = plt.subplots()
+
+    # case_df.plot.bar()
+    # print(case_df.std())
+    error = [
+        [case_df["Sem máscara"].std()] * case_df_rows_count, 
+        [case_df["Máscara cirúrgica"].std()] * case_df_rows_count, 
+        [case_df["Máscara N95"].std()] * case_df_rows_count
+    ]
+
+    
+
+    label_prob = "Probabilidade média de contaminação no Caso " + str(case_index)
+    if plot_kind == 'bar':
+        ax = case_df.plot(kind=plot_kind, yerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=4)
+        ax.set_xlabel(label_data)
+        ax.set_ylabel(label_prob)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+    elif plot_kind == 'barh':
+        ax = case_df.plot(kind=plot_kind, xerr=error, edgecolor = 'black', rot=0, width=0.9)
+        ax.set_ylabel(label_data)
+        ax.set_xlabel(label_prob)
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+    
+    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0., title="Uso de máscara")
+    # plt.xticks(rotation=90)
+    # plt.errorbar(trip.index, 'gas', yerr='std', data=trip)
+    # case_df.plot.bar(x=choosed_column, y='Sem máscara')
+    # # ax[0].barplot()
+    # # ax.hist(x=final_df, histtype='bar')
+
+    # # plt.show()
+    fig_filename = path + "case_" + str(case_index) + "." + filetype
+    plt.savefig(fig_filename, bbox_inches='tight')
     plt.close()
+
+    # final_df = case_df.melt(id_vars=[choosed_column])
+    csv_filename = path + "case_" + str(case_index) + "." + "csv"
+    # case_df.assign(std_no_mask = '', std_surgery_mask = '', std_n95_mask = '')
+    case_df['Desvio Padrão - Sem máscara'] = case_df["Sem máscara"].std()
+    case_df['Desvio Padrão - Máscara cirúrgica'] = case_df["Máscara cirúrgica"].std()
+    case_df['Desvio Padrão - Máscara N95'] = case_df["Máscara N95"].std()
+
+    print(case_df)
+    case_df.to_csv(csv_filename, header=False, sep=' ')
+    input()
+
+    # plot = sns.barplot(x="value", y=choosed_column, hue='variable', data=final_df, ci='sd')
+    # plot.set_ylabel("Dia da notificação")
+    # # plot.set_xticklabels(labels=rotation=90)
+    # plot.set_xlabel("Probabilidade média de contaminação no Caso " + str(case_index))
+    # plot.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.1%}'.format(y))) 
+    # # plt.xticks(rotation=90)
+    # plt.legend(bbox_to_anchor=(1.02, 0.8), borderaxespad=0, title="Tipo de máscara")
+
+    # filename = path + "case_" + str(case_index) + "." + filetype
+    # figure = plot.get_figure()
+    # figure.savefig(filename, bbox_inches='tight')
 
 def generate_graphs_by_day_average(df, filetype):
     choosed_column = "notification_day"
@@ -333,14 +374,14 @@ def generate_graphs_by_day_average(df, filetype):
     for case_index in range(1, 7):
         case_df = pd.DataFrame(index=named_days)
         case_df["Sem máscara"] = series_dict[case_index]["no_mask"].values
-        case_df["Máscara Cirúrgica"] = series_dict[case_index]["surgery_mask"].values
+        case_df["Máscara cirúrgica"] = series_dict[case_index]["surgery_mask"].values
         case_df["Máscara N95"] = series_dict[case_index]["n95_mask"].values
 
         case_df = case_df.loc[reordered_named_days]
-        case_df.reset_index(inplace=True)
-        case_df.rename(columns={'index': choosed_column}, inplace=True)
+        # case_df.reset_index(inplace=True)
+        # case_df.rename(columns={'index': choosed_column}, inplace=True)
 
-        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column)
+        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, "bar", "Dia da notificação")
 
 def generate_graphs_by_professor_student_average(df, filetype, professors_ids, students_ids):
     new_df = df.copy().assign(professor_student='')
@@ -357,13 +398,13 @@ def generate_graphs_by_professor_student_average(df, filetype, professors_ids, s
         os.makedirs(path, exist_ok=True)
         
     for case_index in range(1, 7):
-        case_df = pd.DataFrame()
-        case_df[choosed_column] = ["professor", "student"]
+        case_df = pd.DataFrame(index=["Professor", "Estudante"])
+        # case_df[choosed_column] = ["professor", "student"]
         case_df["Sem máscara"] = series_dict[case_index]["no_mask"].values
-        case_df["Máscara Cirúrgica"] = series_dict[case_index]["surgery_mask"].values
+        case_df["Máscara cirúrgica"] = series_dict[case_index]["surgery_mask"].values
         case_df["Máscara N95"] = series_dict[case_index]["n95_mask"].values
 
-        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, choosed_column)
+        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, "bar", "Acadêmico")
 
 def get_professors_students_academic_id(academics):
     professors_ids = []
@@ -393,8 +434,43 @@ def get_students_by_courses_dict(students_ids, academics, professors, students):
     
     return students_by_courses
 
-def generate_graphs_by_course_average(df, data):
-    return
+def generate_graphs_by_course_average(df, filetype, students_by_courses):
+    choosed_column = 'student_course'
+    path = './images/courses/'
+
+    new_df = df.copy().assign(student_course = '')
+
+    for course in students_by_courses:
+        new_df.loc[new_df["academic_id"].isin(students_by_courses[course]), choosed_column] = course
+
+    new_df.drop(new_df[new_df[choosed_column] == ''].index, inplace=True)
+
+    df_dict = get_dataframe_dict_to_calculate_average(new_df, choosed_column)
+    series_dict = get_dataframe_series_dict_with_calculated_averages(df_dict)
+
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        
+
+    all_courses = list(students_by_courses.keys())
+    all_courses = [course.replace("- LICENCIATURA", "(L)").replace("- BACHARELADO", "(B)") for course in all_courses]
+
+    for case_index in range(1, 7):
+        case_df = pd.DataFrame(index=all_courses)
+        # case_df[choosed_column] = all_courses
+        case_df["Sem máscara"] = series_dict[case_index]["no_mask"].values
+        case_df["Máscara cirúrgica"] = series_dict[case_index]["surgery_mask"].values
+        case_df["Máscara N95"] = series_dict[case_index]["n95_mask"].values
+
+        # splitted_case_df = []
+
+        # for index in range(0, 12, 3):
+        #     selected_courses = all_courses[index:index+3]
+        #     splitted_case_df.append(case_df[case_df[choosed_column].isin(selected_courses)])
+
+        # for splitted_df in splitted_case_df:
+        generate_dataframe_series_dict_plot(case_df, case_index, filetype, path, "barh", "Cursos")
+        # input()
 
 def get_statistics(data):
     df = pd.read_csv("results.csv", sep=";")
@@ -404,16 +480,25 @@ def get_statistics(data):
     professors_ids, students_ids = get_professors_students_academic_id(academics)
     students_by_courses = get_students_by_courses_dict(students_ids, academics, professors, students)
 
-    generate_graphs_by_day_average(df, "png")
-    generate_graphs_by_professor_student_average(df, "png", professors_ids, students_ids)
+    filetype = "png"
 
+    generate_graphs_by_day_average(df, filetype)
+    generate_graphs_by_professor_student_average(df, filetype, professors_ids, students_ids)
+    generate_graphs_by_course_average(df, filetype, students_by_courses)
 
-    
+    # data=pd.DataFrame({"col1":[1,2,3,4,5],"col2":[2,4,6,8,10]})
+    # fig=plt.figure()
+    # ax1=fig.add_subplot(2,1,1)
+    # ax2=fig.add_subplot(2,1,2)
+    # data["col1"].plot(ax=ax1)
+    # data["col2"].plot(ax=ax2)
+
+    # plt.savefig("teste.png")
 
 def main():
     (opt, _) = parse_terminal_options()
 
-    data = load_and_save_data(opt.load_data, opt.save_csv)
+    data = load_and_save_data(opt.load_option, opt.save_csv)
 
     # simulate_tracking(data)
     get_statistics(data)
