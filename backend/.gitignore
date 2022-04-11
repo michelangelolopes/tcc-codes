@@ -7,6 +7,7 @@ lib/*
 
 *.txt
 !requirements.txt
+!data/ventilation_rates.txt
 
 *.csv
 !data/*.csv
