@@ -3,6 +3,8 @@ import os
 import pandas as pd
 from matplotlib.ticker import FuncFormatter
 
+import numpy as np
+
 from . import data_processing
 
 def weighted_avg(df, values_column, weights_column):
@@ -21,6 +23,8 @@ def get_dataframe_dict_to_calculate_average(df, choosed_column):
     df_dict = {}
     for mask_type, df_mask in df_masks:
         df_dict[mask_type] = df_mask.groupby([choosed_column])
+        # if choosed_column == "covid_variant":
+        #     print(df_dict[mask_type].apply(print))
 
     return df_dict
 
@@ -76,33 +80,49 @@ def get_students_by_courses_dict(students_ids, academics, professors, students):
     
     return students_by_courses
 
-def generate_and_save_dataframe_chart_by_case(case_df, case_index, path, filetype, plot_kind, label_data):
+def generate_and_save_dataframe_chart_by_case(case_df, plot_kind, label_data, label_prob, fig_filename, legend_title):
     # gera o plot de um gráfico usando um dataframe como base e salva, logo em seguida esse gráfico em um arquivo
 
     case_df_rows_count = len(case_df.index)
 
-    error = [
-        [case_df["Sem máscara"].std()] * case_df_rows_count, 
-        [case_df["Máscara cirúrgica"].std()] * case_df_rows_count, 
-        [case_df["Máscara N95"].std()] * case_df_rows_count
-    ]
+    # print(case_df.columns)
 
-    label_prob = "Probabilidade média de contaminação no Caso " + str(case_index)
+    if legend_title == "Uso de máscara":
+        error = [
+            [case_df["Sem máscara"].std()] * case_df_rows_count, 
+            [case_df["Máscara cirúrgica"].std()] * case_df_rows_count, 
+            [case_df["Máscara N95"].std()] * case_df_rows_count
+        ]
+    elif legend_title == "Casos de ventilação":
+        error = [
+            [case_df["Caso 1"].std()] * case_df_rows_count, 
+            [case_df["Caso 2"].std()] * case_df_rows_count, 
+            [case_df["Caso 3"].std()] * case_df_rows_count, 
+            [case_df["Caso 4"].std()] * case_df_rows_count, 
+            [case_df["Caso 5"].std()] * case_df_rows_count, 
+            [case_df["Caso 6"].std()] * case_df_rows_count
+        ]
 
-    if plot_kind == 'bar':
-        ax = case_df.plot(kind=plot_kind, yerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=3)
-        ax.set_xlabel(label_data)
-        ax.set_ylabel(label_prob)
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
-    elif plot_kind == 'barh':
-        ax = case_df.plot(kind=plot_kind, xerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=2)
-        ax.set_ylabel(label_data)
-        ax.set_xlabel(label_prob)
-        ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+    if label_data == "Variantes":
+        if plot_kind == 'bar':
+            ax = case_df.plot(kind=plot_kind, edgecolor = 'black', rot=0, width=0.9, capsize=3)
+            ax.set_xlabel(label_data)
+            ax.set_ylabel(label_prob)
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))        
+    else:
+        if plot_kind == 'bar':
+            ax = case_df.plot(kind=plot_kind, yerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=3)
+            ax.set_xlabel(label_data)
+            ax.set_ylabel(label_prob)
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+        elif plot_kind == 'barh':
+            ax = case_df.plot(kind=plot_kind, xerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=2)
+            ax.set_ylabel(label_data)
+            ax.set_xlabel(label_prob)
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
     
-    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0., title="Uso de máscara")
-    
-    fig_filename = path + "case_" + str(case_index) + "." + filetype
+    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0., title=legend_title)
+
     plt.savefig(fig_filename, bbox_inches='tight')
     plt.close()
 
@@ -123,6 +143,8 @@ def generate_and_save_dataframe_chart(df_dict, df_index, path, filetype, plot_ki
         os.makedirs(path, exist_ok=True)
 
     series_dict = get_dataframe_series_dict_with_calculated_averages(df_dict)
+    all_cases_df = pd.DataFrame()
+    # print(all_cases_df)
 
     for case_index in range(1, 7):
         case_df = pd.DataFrame(index=df_index)
@@ -134,9 +156,21 @@ def generate_and_save_dataframe_chart(df_dict, df_index, path, filetype, plot_ki
             reordered_named_days = list(case_df.index)
             reordered_named_days.append(reordered_named_days.pop(0))
             case_df = case_df.loc[reordered_named_days]
+        label_prob = "Probabilidade média de contaminação no Caso " + str(case_index)
+        fig_filename = path + "case_" + str(case_index) + "." + filetype
+        legend_title = "Uso de máscara"
 
-        generate_and_save_dataframe_chart_by_case(case_df, case_index, path, filetype, plot_kind, label_data)
-        save_chart_data_to_csv_file(case_df, case_index, path)
+        generate_and_save_dataframe_chart_by_case(case_df, plot_kind, label_data, label_prob, fig_filename, legend_title)
+        case_df.drop('Sem máscara', axis=1, inplace=True)
+        case_df.drop('Máscara N95', axis=1, inplace=True)
+        case_df.rename(columns={'Máscara cirúrgica':'Caso %d' % case_index}, inplace=True)
+        all_cases_df = pd.concat([all_cases_df, case_df], axis=1)
+
+    label_prob = "Probabilidade média de contaminação para todos os casos"
+    fig_filename = path + "all_cases" + "." + filetype
+    legend_title = "Casos de ventilação"
+
+    generate_and_save_dataframe_chart_by_case(all_cases_df, plot_kind, label_data, label_prob, fig_filename, legend_title)
 
 def generate_charts_by_day_average(df, choosed_column, path, filetype):
     # gera gráficos considerando a média das probabilidades de contaminação dependendo do dia da semana em que ocorreu a notificação do infectado
@@ -174,19 +208,39 @@ def generate_charts_by_course_average(df, choosed_column, path, filetype, studen
 
     generate_and_save_dataframe_chart(df_dict, all_courses, path, filetype, "barh", "Cursos")
 
+def generate_chart_based_on_variants(df, choosed_column, path, filetype):
+    df_dict = get_dataframe_dict_to_calculate_average(df, choosed_column)
+    variants = ["Delta", "Ômicron"]
+
+    generate_and_save_dataframe_chart(df_dict, variants, path, filetype, "bar", "Variantes")
+
 def generate_charts_based_on_statistics(data):
     # gera gráficos com as estatísticas obtidas na simulação
 
-    df = pd.read_csv("results.csv", sep=";")
-    
-    _, _, academics, professors, students, _, _ = data
-    
-    professors_ids, students_ids = get_professors_and_students_list(academics)
-    students_by_courses = get_students_by_courses_dict(students_ids, academics, professors, students)
+    covid_variants = {
+        "origin": None, 
+        "delta": None,
+        "omicron": None
+    }
 
     parent_path = "./images/"
     filetype = "pdf"
 
-    generate_charts_by_day_average(df, "notification_day", parent_path + "days/", filetype)
-    generate_charts_by_professor_student_average(df, "professor_student", parent_path + "people/", filetype, professors_ids, students_ids)
-    generate_charts_by_course_average(df, "student_course", parent_path + "courses/", filetype, students_by_courses)
+    for variant in covid_variants:
+        df = pd.read_csv("results_%s.csv" % (variant), sep=";")
+        # print(df)        
+        _, _, academics, professors, students, _, _ = data
+        
+        professors_ids, students_ids = get_professors_and_students_list(academics)
+        students_by_courses = get_students_by_courses_dict(students_ids, academics, professors, students)
+
+        generate_charts_by_day_average(df, "notification_day", parent_path + variant + "/days/", filetype)
+        generate_charts_by_professor_student_average(df, "professor_student", parent_path + variant + "/people/", filetype, professors_ids, students_ids)
+        generate_charts_by_course_average(df, "student_course", parent_path + variant + "/courses/", filetype, students_by_courses)
+
+        covid_variants[variant] = df.assign(covid_variant = variant)
+    
+    df = pd.concat([covid_variants["delta"], covid_variants["omicron"]])
+    df.reset_index(inplace = True)
+    # print(df)
+    generate_chart_based_on_variants(df, "covid_variant", parent_path + "variants/", filetype)
