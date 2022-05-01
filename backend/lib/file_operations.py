@@ -220,7 +220,9 @@ def load_classrooms_from_csv_file(classroom_types):
 
     return classrooms
 
-def save_structures_to_csv_files(room_mapping, academics_mapping, academics, professors, students, classroom_types, classrooms):
+def save_structures_to_csv_files(data):
+    room_mapping, academics_mapping, academics, professors, students, classroom_types, classrooms = data
+    
     save_room_mapping_to_csv_file(room_mapping)
     save_academics_mapping_to_csv_file(academics_mapping)
     save_academics_to_csv_file(academics)

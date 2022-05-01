@@ -23,6 +23,7 @@ def get_dataframe_dict_to_calculate_average(df, choosed_column):
     df_dict = {}
     for mask_type, df_mask in df_masks:
         df_dict[mask_type] = df_mask.groupby([choosed_column])
+        # print(df_dict[mask_type].apply(print))
         # if choosed_column == "covid_variant":
         #     print(df_dict[mask_type].apply(print))
 
@@ -156,6 +157,12 @@ def generate_and_save_dataframe_chart(df_dict, df_index, path, filetype, plot_ki
             reordered_named_days = list(case_df.index)
             reordered_named_days.append(reordered_named_days.pop(0))
             case_df = case_df.loc[reordered_named_days]
+
+        if label_data == "Cursos":
+            reordered_named_courses = list(case_df.index)
+            reordered_named_courses.sort(reverse=True) # plot considera o último índice mais acima, então a ordem precisa ser ajustada
+            case_df = case_df.loc[reordered_named_courses]
+
         label_prob = "Probabilidade média de contaminação no Caso " + str(case_index)
         fig_filename = path + "case_" + str(case_index) + "." + filetype
         legend_title = "Uso de máscara"
@@ -203,6 +210,8 @@ def generate_charts_by_course_average(df, choosed_column, path, filetype, studen
 
     all_courses = list(students_by_courses.keys())
     all_courses = [course.replace("- LICENCIATURA", "(L)").replace("- BACHARELADO", "(B)") for course in all_courses]
+    all_courses.sort() # na hora de plotar, a ordem fica invertida
+    # print(all_courses)
 
     df_dict = get_dataframe_dict_to_calculate_average(new_df, choosed_column)
 

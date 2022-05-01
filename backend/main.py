@@ -19,11 +19,12 @@ def parse_terminal_options():
     # a função gera padrões de parâmetros a serem analisados e retorna o resultado final
 
     parser = OptionParser()
-    parser.add_option("-c", "--save-csv", action="store_true", dest="save_csv", default=False, help="Define se os dados brutos tratados serão salvos ou não")
+    parser.add_option("-s", "--save-csv", action="store_true", dest="save_csv", default=False, help="Define se os dados brutos tratados serão salvos ou não")
     parser.add_option("-f", "--use-flask", action="store_true", dest="use_flask", default=False, help="Define se o Flask será usado ou não")
-    parser.add_option("-o", "--load-option", type="string", dest="load_option", default="csv", help="Padrão: \"csv\". Seleciona a forma como os dados serão obtidos, por csv, dados anonimizados, ou por excel, dados brutos")
-    parser.add_option("-s", "--simulate-tracking", action="store_true", dest="simulate_tracking", default=False, help="Define se a simulação será executada ou não")
+    parser.add_option("-l", "--load-option", type="string", dest="load_option", default="csv", help="Padrão: \"csv\". Seleciona a forma como os dados serão obtidos, por csv, dados anonimizados, ou por excel, dados brutos")
+    parser.add_option("-t", "--simulate-tracking", action="store_true", dest="simulate_tracking", default=False, help="Define se a simulação será executada ou não")
     parser.add_option("-g", "--generate-graphics", action="store_true", dest="generate_graphics", default=False, help="Define se os gráficos com os resultados da simulação serão gerados ou não")
+    parser.add_option("-e", "--extra-data", action="store_true", dest="extras", default=False, help="Define se informações extras devem ser salvas")
 
     return parser.parse_args()
 
@@ -52,6 +53,11 @@ def main():
     
     if opt.generate_graphics == True:
         chart_generating.generate_charts_based_on_statistics(data)
+
+    if opt.extras == True:    
+        students_by_courses = data_processing.count_students_by_course(data)
+        data_processing.get_classes_predominance(data, list(students_by_courses.keys()))
+        data_processing.count_classroom_types(data)
 
 if __name__ == "__main__":
     main()

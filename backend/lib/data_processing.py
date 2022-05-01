@@ -116,6 +116,53 @@ def remove_not_imported_component_class(room_mapping, academics_mapping):
     for day, hour, classroom in remove:                
         del room_mapping[day][hour][classroom]
 
+def remove_duplicated_component_class(room_mapping, academics_mapping, classrooms):
+    components = {}
+
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                component_code, component_class = room_mapping[day][hour][classroom]
+                component = component_code + " - " + component_class
+
+                current_classroom = find_class_instance_by_id(classroom, classrooms)
+
+                if component not in components:
+                    components[component] = {}
+                
+                if classroom not in components[component]:
+                    components[component][classroom] = []
+                
+                components[component][classroom].append([day, hour, current_classroom.type.type, len(academics_mapping[component_code][component_class])])
+
+    priority_list = {
+        45: ["Sala grande", "Sala pós", "Sala média", "Sala pequena"], # a partir de 45 alunos
+        25: ["Sala pós", "Sala média", "Sala grande", "Sala pequena"], # entre 25 e 44 alunos
+        0: ["Sala pequena", "Sala média", "Sala pós", "Sala grande"] # entre 0 e 24 alunos
+    }
+
+    for component in components:
+        if len(components[component]) > 1:
+            fitted_option = [None, 3]
+            for classroom in components[component]:
+                option = components[component][classroom][0]
+                count_students = list(priority_list.keys())
+
+                for count in count_students:
+                    if option[3] >= count:
+                        priority = priority_list[count].index(option[2])
+
+                        if priority <= fitted_option[1]:
+                            fitted_option = [classroom, priority]
+                        break
+                    
+            for classroom in components[component]:
+                if fitted_option[0] != classroom:
+                    for classroom_list in components[component][classroom]:
+                        day = classroom_list[0]
+                        hour = classroom_list[1]
+                        del room_mapping[day][hour][classroom]
+
 def fill_empty_component_class(room_mapping, academics_mapping):
     classes_to_fix = {}
 
@@ -208,6 +255,7 @@ def get_processed_data():
     remove_not_imported_component_code(room_mapping, academics_mapping)
     fill_empty_component_class(room_mapping, academics_mapping)
     remove_not_imported_component_class(room_mapping, academics_mapping)
+    remove_duplicated_component_class(room_mapping, academics_mapping, classrooms)
 
     academics = anonymize_data(room_mapping, academics_mapping, professors, students)
 
@@ -273,3 +321,86 @@ def find_class_instance_by_academic_id(academic_id, academics, professors, stude
         academic = find_class_instance_by_id(professor_id, professors)
 
     return academic
+
+def count_students_by_course(data):
+    _, _, _, _, students, _, _ = data
+
+    students_by_courses = {}
+
+    for student in students:
+        student_course = student.course
+        student_course = student_course.replace("- LICENCIATURA", "(L)").replace("- BACHARELADO", "(B)")
+
+        if student_course not in students_by_courses:
+            students_by_courses[student_course] = 0
+        
+        students_by_courses[student_course] += 1
+
+    with open("count_students_by_course.csv", "w") as file:
+        file.write("Curso;Quantidade de alunos\n")
+        for item in sorted(students_by_courses.items()):
+            file.write("%s; %d\n" % (item[0], item[1]))
+    
+    return students_by_courses
+
+def count_classroom_types(data):
+    room_mapping, _, _, _, _, _, classrooms = data
+
+    classroom_types = {}
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                current_classroom = find_class_instance_by_id(classroom, classrooms)
+                if current_classroom.type.type not in classroom_types:
+                    classroom_types[current_classroom.type.type] = []
+                    classroom_types[current_classroom.type.type].append(classroom)
+                
+                elif classroom not in classroom_types[current_classroom.type.type]:
+                    classroom_types[current_classroom.type.type].append(classroom)
+
+    with open("count_classroom_types.csv", "w") as file:
+        file.write("Tipo de sala;Quantidade\n")
+        for classroom_type in classroom_types:
+            file.write("%s;%d\n" % (classroom_type, len(classroom_types[classroom_type])))
+
+def get_classes_predominance(data, courses):
+    room_mapping, academics_mapping, _, _, _, _, classrooms = data
+    
+    courses.sort()
+    classes_predominance = {}
+
+    for day in room_mapping:
+        for hour in room_mapping[day]:
+            for classroom in room_mapping[day][hour]:
+                current_classroom = find_class_instance_by_id(classroom, classrooms)
+                component_code, component_class = room_mapping[day][hour][classroom]
+                component = component_code + " - " + component_class + " - " + current_classroom.type.type
+
+                print(component_code, ";", component_class, ";", classroom, ";", current_classroom.type.type)
+                if component not in classes_predominance:
+                    classes_predominance[component] = {}
+                    for course in courses:
+                        classes_predominance[component][course] = 0
+
+                    academics_list = academics_mapping[component_code][component_class]
+                    for academic in academics_list:
+                        if type(academic) == classes.Student:
+                            student_course = academic.course.replace("- LICENCIATURA", "(L)").replace("- BACHARELADO", "(B)")
+                            classes_predominance[component][student_course] += 1
+
+    with open("classes_predominance.csv", "w") as file:
+        file.write("Disciplina - Turma - Tipo de sala")
+        
+        for course in courses:
+            file.write(";%s" % course)
+
+        file.write("\n")
+
+        for component in classes_predominance:
+            file.write(component)
+            
+            for course in courses:
+                file.write(";%s" % classes_predominance[component][course])
+
+            file.write("\n")
+        
