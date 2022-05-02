@@ -71,14 +71,14 @@ def get_incubation_days(informed_day, incubation_interval):
 
     return incubation_days
 
-def get_mask_efficiency(mask_type):
+def get_mask_efficiency(infector_mask):
     mask_dict = {
         'no_mask': 0,
         'surgery_mask': 0.5,
         'n95_mask': 0.95
     }
 
-    return mask_dict[mask_type]
+    return mask_dict[infector_mask]
 
 def wells_riley_equation(param):
     # calcula a probabilidade de contaminação por um vírus transmissível pelo ar, dados os parâmetros informados no dict param
@@ -198,47 +198,47 @@ def simulate_tracking(data):
         'omicron': 9.5
     }
 
-    for variant in variants_r0:
-        file = open("results_%s.csv" % (variant), "w")
-        file.write("academic_id;notification_day;mask_type;affected_people_count")
+    days = [3, 4, 5, 6, 7, 1]
+
+    with open("results.csv", "w") as file:
+        file.write("academic_id;notification_day;variant;infector_mask;susceptible_mask;affected_people_count")
         
         for index in range(1, 7):
             file.write(";case_%d" % index)
         
         file.write("\n")
+    
+        for variant in variants_r0:
+            for informed_id in academics:
+                for informed_day in days:
+                    for infector_mask in ["no_mask", "surgery_mask", "n95_mask"]:
+                        for susceptible_mask in ["no_mask", "surgery_mask", "n95_mask"]:
+                            # informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
+                            infected_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
 
-        days = [3, 4, 5, 6, 7, 1]
+                            # ignorando dias de fim de semana
+                            incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
 
-        for informed_id in academics:
-            for informed_day in days:
-                for mask_type in ["no_mask", "surgery_mask", "n95_mask"]:
-                    # informed_id, informed_day, informed_mask = get_informed_params(opt.use_flask)
-                    infected_academic = data_processing.find_class_instance_by_academic_id(informed_id, academics, professors, students)
+                            equation_params["infector_mask"] = get_mask_efficiency(infector_mask)
+                            equation_params["susceptible_mask"] = get_mask_efficiency(susceptible_mask)
+                            affected_academics = calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params, variants_r0[variant])
 
-                    # ignorando dias de fim de semana
-                    incubation_days = get_incubation_days(informed_day, incubation_interval = 2)
-
-                    equation_params["infector_mask"] = get_mask_efficiency(mask_type)
-                    equation_params["susceptible_mask"] = get_mask_efficiency(mask_type)
-                    affected_academics = calculate_contamination_prob_from_one_infector(room_mapping, academics_mapping, classrooms, infected_academic, incubation_days, equation_params, variants_r0[variant])
-
-                    average = [0] * 6
-                    count_affected = len(affected_academics)
-                    
-                    if count_affected != 0:
-                        for affected_academic in affected_academics:
-                            for case in range(0, 6):
-                                average[case] += affected_academic.comb_prob[case]
+                            average = [0] * 6
+                            count_affected = len(affected_academics)
                             
-                            affected_academic.infection_probability = []
-                            affected_academic.comb_prob = []
-                        for case in range(0, 6):
-                            average[case] /= count_affected
+                            if count_affected != 0:
+                                for affected_academic in affected_academics:
+                                    for case in range(0, 6):
+                                        average[case] += affected_academic.comb_prob[case]
+                                    
+                                    affected_academic.infection_probability = []
+                                    affected_academic.comb_prob = []
+                                for case in range(0, 6):
+                                    average[case] /= count_affected
 
-                    file.write("%s;%d;%s;%d" % (informed_id, informed_day, mask_type, count_affected))
-                    for case in range(0, 6):
-                        file.write(";%f" % average[case])
-                    file.write("\n")
-                    file.flush()
-                    os.fsync(file)
-        file.close()
+                            file.write("%s;%d;%s;%s;%s;%d" % (informed_id, informed_day, variant, infector_mask, susceptible_mask, count_affected))
+                            for case in range(0, 6):
+                                file.write(";%f" % average[case])
+                            file.write("\n")
+                            file.flush()
+                            os.fsync(file)

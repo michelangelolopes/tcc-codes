@@ -23,7 +23,7 @@ def parse_terminal_options():
     parser.add_option("-f", "--use-flask", action="store_true", dest="use_flask", default=False, help="Define se o Flask será usado ou não")
     parser.add_option("-l", "--load-option", type="string", dest="load_option", default="csv", help="Padrão: \"csv\". Seleciona a forma como os dados serão obtidos, por csv, dados anonimizados, ou por excel, dados brutos")
     parser.add_option("-t", "--simulate-tracking", action="store_true", dest="simulate_tracking", default=False, help="Define se a simulação será executada ou não")
-    parser.add_option("-g", "--generate-graphics", action="store_true", dest="generate_graphics", default=False, help="Define se os gráficos com os resultados da simulação serão gerados ou não")
+    parser.add_option("-c", "--generate-charts", action="store_true", dest="generate_charts", default=False, help="Define se os gráficos com os resultados da simulação serão gerados ou não")
     parser.add_option("-e", "--extra-data", action="store_true", dest="extras", default=False, help="Define se informações extras devem ser salvas")
 
     return parser.parse_args()
@@ -51,7 +51,7 @@ def main():
     if opt.simulate_tracking == True:
         contamination_tracking.simulate_tracking(data)
     
-    if opt.generate_graphics == True:
+    if opt.generate_charts == True:
         chart_generating.generate_charts_based_on_statistics(data)
 
     if opt.extras == True:    
