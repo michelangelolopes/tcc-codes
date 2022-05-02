@@ -343,6 +343,19 @@ def count_students_by_course(data):
     
     return students_by_courses
 
+def count_classes_by_day(data):
+    room_mapping, _, _, _, _, _, _ = data
+
+    days = {}
+    for day in room_mapping:
+        days[day] = 0
+        for hour in room_mapping[day]:
+            print(room_mapping[day][hour])
+            days[day] += len(room_mapping[day][hour])
+
+    print(days)
+
+
 def count_classroom_types(data):
     room_mapping, _, _, _, _, _, classrooms = data
 

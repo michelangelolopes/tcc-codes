@@ -58,6 +58,7 @@ def main():
         students_by_courses = data_processing.count_students_by_course(data)
         data_processing.get_classes_predominance(data, list(students_by_courses.keys()))
         data_processing.count_classroom_types(data)
+        data_processing.count_classes_by_day(data)
 
 if __name__ == "__main__":
     main()
