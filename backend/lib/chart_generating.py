@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
+import math
+import numpy as np
 import os
 import pandas as pd
 from matplotlib.ticker import FuncFormatter
-
-import numpy as np
 
 from . import data_processing
 
@@ -14,6 +14,19 @@ def weighted_avg(df, values_column, weights_column):
     weights = df[weights_column]
     
     return (values * weights).sum() / weights.sum()
+
+def weighted_std(df, values_column, weights_column, average_column):
+    """
+    Return the weighted average and standard deviation.
+    values, weights -- Numpy ndarrays with the same shape.
+    """
+    values = df[values_column]
+    weights = df[weights_column]
+    average = df[average_column]
+    # average = numpy.average(values, weights=weights)
+    # Fast and numerically precise:
+    variance = np.average((values - average)**2, weights = weights)
+    return math.sqrt(variance)
 
 def get_dataframe_dict_to_calculate_average(df, choosed_column):
     # retorna um dicionário de dataframes agrupados pelo tipo de máscara usado
@@ -78,42 +91,44 @@ def get_students_by_courses_dict(students_ids, academics, professors, students):
     
     return students_by_courses
 
-def get_chart_errors(case_df, legend_title):
-    case_df_rows_count = len(case_df.index)
-
-    error = []
-    for df_index in case_df:
-        error_aux = [case_df[df_index].std()] * case_df_rows_count
-        error.append(error_aux)
-
-    return error
-
 def generate_and_save_dataframe_chart_by_case(case_df, plot_kind, label_data, fig_filename, legend_title):
     # gera o plot de um gráfico usando um dataframe como base e salva, logo em seguida esse gráfico em um arquivo
 
     label_prob = "Probabilidade média de contaminação"
+    case_df_rows_count = len(case_df.index)
+    # print(case_df_rows_count)
+    # print(case_df)
+    # input()
+    error = []
+    prob_ticks = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    fontsize = 20
+    labelpad = 15
+    figsize = (5, 6) # largura, altura
     
-    error = get_chart_errors(case_df, legend_title)
+    for df_index in case_df:
+        error_aux = [case_df[df_index].std()] * case_df_rows_count
+        error.append(error_aux)
 
     if label_data == "Variantes":
         if plot_kind == 'bar':
-            ax = case_df.plot(kind=plot_kind, edgecolor = 'black', rot=0, width=0.9, capsize=3)
-            ax.set_xlabel(label_data)
-            ax.set_ylabel(label_prob)
-            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))        
+            ax = case_df.plot(figsize=figsize, kind=plot_kind, edgecolor = 'black', rot=0, width=0.9, capsize=3, fontsize=fontsize, yticks=prob_ticks)
+            plt.xlabel(label_data, fontsize=fontsize, labelpad=labelpad)
+            plt.ylabel(label_prob, fontsize=fontsize, labelpad=labelpad)
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.0%}'.format(value)))        
     else:
         if plot_kind == 'bar':
-            ax = case_df.plot(kind=plot_kind, yerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=3)
-            ax.set_xlabel(label_data)
-            ax.set_ylabel(label_prob)
-            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+            ax = case_df.plot(kind=plot_kind, yerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=3, fontsize=fontsize, yticks=prob_ticks)
+            plt.xlabel(label_data, fontsize=fontsize, labelpad=fontsize)
+            plt.ylabel(label_prob, fontsize=fontsize, labelpad=fontsize)
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.0%}'.format(value)))
         elif plot_kind == 'barh':
-            ax = case_df.plot(kind=plot_kind, xerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=2)
-            ax.set_ylabel(label_data)
-            ax.set_xlabel(label_prob)
-            ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.1%}'.format(value)))
+            ax = case_df.plot(kind=plot_kind, xerr=error, edgecolor = 'black', rot=0, width=0.9, capsize=2, fontsize=fontsize, xticks=prob_ticks)
+            plt.ylabel(label_data, fontsize=fontsize, labelpad=fontsize)
+            plt.xlabel(label_prob, fontsize=fontsize, labelpad=fontsize)
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: '{:.0%}'.format(value)))
     
-    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0., title=legend_title)
+    ax.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0., fontsize=fontsize)
+    # title=legend_title, 
 
     plt.savefig(fig_filename, bbox_inches='tight')
     plt.close()
@@ -135,6 +150,10 @@ def generate_and_save_dataframe_chart(df_dict, df_index, df_ordered_index, path,
         os.makedirs(dir_path, exist_ok=True)
 
     series_dict = get_dataframe_series_dict_with_calculated_averages(df_dict)
+
+    # for df in df_dict:
+    #     print(df_dict[df].apply(print))
+    # input()
 
     mask_name = {
         'no_mask': 'Sem máscara',
@@ -257,7 +276,7 @@ def generate_charts_based_on_statistics(data):
         variants_df = pd.concat([covid_variants["delta"][susceptible_mask], covid_variants["omicron"][susceptible_mask]])
         path_variants = parent_path + "variants/%s-" % susceptible_mask
         generate_chart_based_on_variants(variants_df, "variant", path_variants, filetype)
-
+    # return
     for susceptible_mask in ["no_mask", "surgery_mask"]:
         new_df = df.query("variant == 'omicron' and infector_mask != 'n95_mask' and susceptible_mask != 'n95_mask'") # removendo casos que não serão considerados nessas comparações
 
